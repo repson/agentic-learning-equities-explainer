@@ -1,0 +1,6 @@
+# Parte 2: Configuración de SageMaker
+# Copia este archivo como terraform.tfvars y actualiza con tus valores
+
+# Tu región de AWS para SageMaker
+# Debe coincidir con tu DEFAULT_AWS_REGION del .env
+aws_region = "us-east-1"

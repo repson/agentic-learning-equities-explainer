@@ -1,0 +1,10 @@
+# Parte 3: Configuración del Pipeline de Ingesta
+# Copia este archivo a terraform.tfvars y actualízalo con tus valores
+
+# Tu región de AWS para la infraestructura de ingestión
+# Debe coincidir con tu DEFAULT_AWS_REGION de .env
+aws_region = "us-east-1"
+
+# Nombre del endpoint SageMaker de la Parte 2
+# Debe ser "alex-embedding-endpoint" si no lo cambiaste
+sagemaker_endpoint_name = "alex-embedding-endpoint"

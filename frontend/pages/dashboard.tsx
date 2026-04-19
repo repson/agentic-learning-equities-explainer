@@ -1,0 +1,660 @@
+import { useUser, useAuth } from "@clerk/nextjs";
+import { useEffect, useState, useCallback } from "react";
+import { API_URL } from "../lib/config";
+import Layout from "../components/Layout";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { Skeleton, SkeletonCard } from "../components/Skeleton";
+import { showToast } from "../components/Toast";
+import Head from "next/head";
+
+interface UserData {
+  clerk_user_id: string;
+  display_name: string;
+  years_until_retirement: number;
+  target_retirement_income: number;
+  asset_class_targets: Record<string, number>;
+  region_targets: Record<string, number>;
+}
+
+interface Account {
+  account_id: string;
+  clerk_user_id: string;
+  account_name: string;
+  account_type: string;
+  account_purpose: string;
+  cash_balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Position {
+  position_id: string;
+  account_id: string;
+  symbol: string;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Instrument {
+  symbol: string;
+  name: string;
+  instrument_type: string;
+  current_price?: number;
+  asset_class_allocation?: Record<string, number>;
+  region_allocation?: Record<string, number>;
+  sector_allocation?: Record<string, number>;
+}
+
+export default function Dashboard() {
+  const { user, isLoaded: userLoaded } = useUser();
+  const { getToken } = useAuth();
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [positions, setPositions] = useState<Record<string, Position[]>>({});
+  const [instruments, setInstruments] = useState<Record<string, Instrument>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastAnalysisDate, setLastAnalysisDate] = useState<string | null>(null);
+
+  // Estado del formulario para campos editables - iniciar vacío para evitar parpadeo
+  const [displayName, setDisplayName] = useState("");
+  const [yearsUntilRetirement, setYearsUntilRetirement] = useState(0);
+  const [targetRetirementIncome, setTargetRetirementIncome] = useState(0);
+  const [equityTarget, setEquityTarget] = useState(0);
+  const [fixedIncomeTarget, setFixedIncomeTarget] = useState(0);
+  const [northAmericaTarget, setNorthAmericaTarget] = useState(0);
+  const [internationalTarget, setInternationalTarget] = useState(0);
+
+  // Calcular resumen del portafolio
+  const calculatePortfolioSummary = useCallback(() => {
+    let totalValue = 0;
+    const assetClassBreakdown: Record<string, number> = {
+      equity: 0,
+      fixed_income: 0,
+      alternatives: 0,
+      cash: 0
+    };
+
+    // Agregar saldos en efectivo
+    accounts.forEach(account => {
+      const cashBalance = Number(account.cash_balance);
+      totalValue += cashBalance;
+      assetClassBreakdown.cash += cashBalance;
+    });
+
+    // Agregar valores de posiciones
+    Object.entries(positions).forEach(([, accountPositions]) => {
+      accountPositions.forEach(position => {
+        const instrument = instruments[position.symbol];
+        if (instrument?.current_price) {
+          const positionValue = Number(position.quantity) * Number(instrument.current_price);
+          totalValue += positionValue;
+
+          // Agregar al desglose por clase de activo
+          if (instrument.asset_class_allocation) {
+            Object.entries(instrument.asset_class_allocation).forEach(([assetClass, percentage]) => {
+              assetClassBreakdown[assetClass] = (assetClassBreakdown[assetClass] || 0) + (positionValue * percentage / 100);
+            });
+          }
+        }
+      });
+    });
+
+    return { totalValue, assetClassBreakdown };
+  }, [accounts, positions, instruments]);
+
+  // Cargar los datos del usuario y cuentas
+  useEffect(() => {
+    async function loadData() {
+      if (!userLoaded || !user) return;
+
+      try {
+        const token = await getToken();
+        if (!token) {
+          setError("No autenticado");
+          setLoading(false);
+          return;
+        }
+
+        // Obtener/crear usuario
+        const userResponse = await fetch(`${API_URL}/api/user`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+
+        if (!userResponse.ok) {
+          throw new Error(`No se pudo sincronizar usuario: ${userResponse.status}`);
+        }
+
+        const response = await userResponse.json();
+        const userData = response.user; // Extraer usuario de la respuesta
+        setUserData(userData);
+        setDisplayName(userData.display_name || "");
+        setYearsUntilRetirement(userData.years_until_retirement || 0);
+        // Asegurar que target_retirement_income sea un número
+        const income = userData.target_retirement_income
+          ? (typeof userData.target_retirement_income === 'string'
+            ? parseFloat(userData.target_retirement_income)
+            : userData.target_retirement_income)
+          : 0;
+        setTargetRetirementIncome(income);
+        setEquityTarget(userData.asset_class_targets?.equity || 0);
+        setFixedIncomeTarget(userData.asset_class_targets?.fixed_income || 0);
+        setNorthAmericaTarget(userData.region_targets?.north_america || 0);
+        setInternationalTarget(userData.region_targets?.international || 0);
+
+        // Obtener cuentas
+        const accountsResponse = await fetch(`${API_URL}/api/accounts`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+
+        if (accountsResponse.ok) {
+          const accountsData = await accountsResponse.json();
+          setAccounts(accountsData);
+
+          // Obtener posiciones para cada cuenta
+          const positionsMap: Record<string, Position[]> = {};
+          const instrumentsMap: Record<string, Instrument> = {};
+
+          for (const account of accountsData) {
+            // Omitir si la cuenta no tiene ID
+            if (!account.id) {
+              console.warn('Falta ID de cuenta en dashboard:', account);
+              continue;
+            }
+
+            const positionsResponse = await fetch(`${API_URL}/api/accounts/${account.id}/positions`, {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              },
+            });
+
+            if (positionsResponse.ok) {
+              const positionsData = await positionsResponse.json();
+              // La API devuelve las posiciones en la clave positions
+              positionsMap[account.id] = positionsData.positions || [];
+
+              // Guardar datos del instrumento de cada posición
+              for (const position of positionsData.positions || []) {
+                if (position.instrument) {
+                  instrumentsMap[position.symbol] = position.instrument as Instrument;
+                }
+              }
+            }
+          }
+
+          setPositions(positionsMap);
+          setInstruments(instrumentsMap);
+        }
+
+        // Obtener la fecha del último análisis
+        // Esto vendría del endpoint jobs en una implementación real
+        setLastAnalysisDate(null);
+
+      } catch (err) {
+        console.error("Error al cargar los datos:", err);
+        setError(err instanceof Error ? err.message : "No se pudieron cargar los datos");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [userLoaded, user, getToken]);
+
+  // Escuchar eventos de finalización de análisis para refrescar datos
+  useEffect(() => {
+    if (!userLoaded || !user) return;
+
+    const handleAnalysisCompleted = async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        console.log('Análisis completado - actualizando datos del dashboard...');
+
+        // Refrescar cuentas para obtener precios más recientes
+        const accountsResponse = await fetch(`${API_URL}/api/accounts`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+
+        if (accountsResponse.ok) {
+          const accountsData = await accountsResponse.json();
+          setAccounts(accountsData.accounts || []);
+
+          // Cargar posiciones para cada cuenta
+          const positionsData: Record<string, Position[]> = {};
+          const instrumentsData: Record<string, Instrument> = {};
+
+          for (const account of accountsData.accounts || []) {
+            const positionsResponse = await fetch(
+              `${API_URL}/api/accounts/${account.id}/positions`,
+              {
+                headers: {
+                  "Authorization": `Bearer ${token}`,
+                },
+              }
+            );
+
+            if (positionsResponse.ok) {
+              const data = await positionsResponse.json();
+              positionsData[account.id] = data.positions || [];
+
+              // Extraer instrumentos de posiciones
+              for (const position of data.positions || []) {
+                if (position.instrument) {
+                  instrumentsData[position.symbol] = position.instrument;
+                }
+              }
+            }
+          }
+
+          setPositions(positionsData);
+          setInstruments(instrumentsData);
+
+          // El portafolio será recalculado en el render
+        }
+      } catch (err) {
+        console.error("Error al actualizar los datos del dashboard:", err);
+      }
+    };
+
+    // Escuchar el evento de finalización
+    window.addEventListener('analysis:completed', handleAnalysisCompleted);
+
+    return () => {
+      window.removeEventListener('analysis:completed', handleAnalysisCompleted);
+    };
+  }, [userLoaded, user, getToken, calculatePortfolioSummary]);
+
+  // Guardar configuración del usuario
+  const handleSaveSettings = async () => {
+    if (!userData) return;
+
+    // Validación de entradas
+    if (!displayName || displayName.trim().length === 0) {
+      showToast('error', 'El nombre a mostrar es obligatorio');
+      return;
+    }
+
+    if (yearsUntilRetirement < 0 || yearsUntilRetirement > 50) {
+      showToast('error', 'Los años hasta la jubilación deben estar entre 0 y 50');
+      return;
+    }
+
+    if (targetRetirementIncome < 0) {
+      showToast('error', 'El ingreso objetivo de jubilación debe ser positivo');
+      return;
+    }
+
+    // Validar porcentajes de asignación
+    const equityFixed = equityTarget + fixedIncomeTarget;
+    if (Math.abs(equityFixed - 100) > 0.01) {
+      showToast('error', 'Acciones y Renta Fija deben sumar 100%');
+      return;
+    }
+
+    const regionTotal = northAmericaTarget + internationalTarget;
+    if (Math.abs(regionTotal - 100) > 0.01) {
+      showToast('error', 'Norteamérica e Internacional deben sumar 100%');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("No autenticado");
+
+      const updateData = {
+        display_name: displayName.trim(),
+        years_until_retirement: yearsUntilRetirement,
+        target_retirement_income: targetRetirementIncome,
+        asset_class_targets: {
+          equity: equityTarget,
+          fixed_income: fixedIncomeTarget
+        },
+        region_targets: {
+          north_america: northAmericaTarget,
+          international: internationalTarget
+        }
+      };
+
+      const response = await fetch(`${API_URL}/api/user`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`No se pudo guardar la configuración: ${response.status}`);
+      }
+
+      const updatedUser = await response.json();
+      setUserData(updatedUser);
+
+      // Mostrar toast de éxito
+      showToast('success', '¡Configuración guardada correctamente!');
+
+    } catch (err) {
+      console.error("Error al guardar la configuración:", err);
+      showToast('error', err instanceof Error ? err.message : "No se pudo guardar la configuración");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const { totalValue, assetClassBreakdown } = calculatePortfolioSummary();
+
+  // Preparar datos para la gráfica circular
+  const pieChartData = Object.entries(assetClassBreakdown)
+    .filter(([, value]) => value > 0)
+    .map(([key, value]) => ({
+      name: key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' '),
+      value: Math.round(value),
+      percentage: totalValue > 0 ? Math.round(value / totalValue * 100) : 0
+    }));
+
+  const COLORS = ['#209DD7', '#753991', '#FFB707', '#062147', '#10B981'];
+
+  return (
+    <>
+      <Head>
+        <title>Dashboard - Alex AI Asesor Financiero</title>
+      </Head>
+      <Layout>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-3xl font-bold text-dark mb-8">Panel</h1>
+
+        {loading ? (
+          // Esqueleto de carga
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-lg shadow p-6">
+                  <Skeleton className="h-4 w-3/4 mx-auto mb-3" />
+                  <Skeleton className="h-8 w-1/2 mx-auto" />
+                </div>
+              ))}
+            </div>
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        ) : (
+          <>
+            {/* Tarjetas de resumen del portafolio */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <h3 className="text-sm font-medium text-gray-500 mb-3">Valor total del portafolio</h3>
+            <p className="text-3xl font-bold text-primary">
+              ${totalValue % 1 === 0
+                ? totalValue.toLocaleString('es-ES')
+                : totalValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <h3 className="text-sm font-medium text-gray-500 mb-3">Número de cuentas</h3>
+            <p className="text-3xl font-bold text-dark">{accounts.length}</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-sm font-medium text-gray-500 mb-2 text-center">Asignación de Activos</h3>
+            {pieChartData.length > 0 ? (
+              <div className="h-24">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={20}
+                      outerRadius={40}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {pieChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => `$${value.toLocaleString('es-ES')}`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Sin posiciones aún</p>
+            )}
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <h3 className="text-sm font-medium text-gray-500 mb-3">Último análisis</h3>
+            <p className="text-3xl font-bold text-dark">
+              {lastAnalysisDate ? new Date(lastAnalysisDate).toLocaleDateString('es-ES') : "Nunca"}
+            </p>
+          </div>
+        </div>
+
+        {/* Sección de Configuración de Usuario */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-xl font-semibold text-dark mb-6">Configuración de Usuario</h2>
+
+          {loading ? (
+            <p className="text-gray-500">Cargando...</p>
+          ) : error && !error.includes("success") ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-red-600">{error}</p>
+            </div>
+          ) : error && error.includes("success") ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <p className="text-green-600">✅ {error}</p>
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Información Básica */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nombre a mostrar
+              </label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ingreso objetivo de jubilación (anual)
+              </label>
+              <input
+                type="text"
+                value={targetRetirementIncome ? targetRetirementIncome.toLocaleString('es-ES') : ''}
+                onChange={(e) => {
+                  // Quitar comas y parsear como número
+                  const value = e.target.value.replace(/,/g, '');
+                  const num = parseInt(value) || 0;
+                  if (!isNaN(num)) {
+                    setTargetRetirementIncome(num);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            {/* Deslizador para años hasta la jubilación */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Años hasta la jubilación: {yearsUntilRetirement}
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="50"
+                value={yearsUntilRetirement}
+                onChange={(e) => setYearsUntilRetirement(Number(e.target.value))}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>0</span>
+                <span>10</span>
+                <span>20</span>
+                <span>30</span>
+                <span>40</span>
+                <span>50</span>
+              </div>
+            </div>
+
+            {/* Asignación objetivo */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Asignación objetivo por clase de activo</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm text-gray-600">Acciones: {equityTarget}%</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={equityTarget}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setEquityTarget(val);
+                      setFixedIncomeTarget(100 - val);
+                    }}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Renta fija: {fixedIncomeTarget}%</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={fixedIncomeTarget}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setFixedIncomeTarget(val);
+                      setEquityTarget(100 - val);
+                    }}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Mini gráfico circular para asignación de activos */}
+              <div className="mt-4 h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Acciones', value: equityTarget },
+                        { name: 'Renta fija', value: fixedIncomeTarget }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={40}
+                      dataKey="value"
+                    >
+                      <Cell fill="#209DD7" />
+                      <Cell fill="#753991" />
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value}%`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Asignación regional objetivo</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm text-gray-600">Norteamérica: {northAmericaTarget}%</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={northAmericaTarget}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setNorthAmericaTarget(val);
+                      setInternationalTarget(100 - val);
+                    }}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Internacional: {internationalTarget}%</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={internationalTarget}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setInternationalTarget(val);
+                      setNorthAmericaTarget(100 - val);
+                    }}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Mini gráfico circular para asignación regional */}
+              <div className="mt-4 h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Norteamérica', value: northAmericaTarget },
+                        { name: 'Internacional', value: internationalTarget }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={40}
+                      dataKey="value"
+                    >
+                      <Cell fill="#FFB707" />
+                      <Cell fill="#062147" />
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value}%`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <button
+              onClick={handleSaveSettings}
+              disabled={saving || loading}
+              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                saving || loading
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-primary text-white hover:bg-blue-600'
+              }`}
+            >
+              {saving ? 'Guardando...' : 'Guardar configuración'}
+            </button>
+          </div>
+        </div>
+          </>
+        )}
+      </div>
+      </Layout>
+    </>
+  );
+}

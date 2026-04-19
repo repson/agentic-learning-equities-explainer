@@ -1,0 +1,19 @@
+# Parte 8: Configuración de Monitoreo Empresarial
+# Copia este archivo a terraform.tfvars y actualízalo con tus valores
+
+# Tu región de AWS para el despliegue
+# Debe coincidir con tu región principal de despliegue
+aws_region = "us-east-1"
+
+# Región de Bedrock donde están desplegados tus modelos
+# IMPORTANTE: Debe coincidir con la variable BEDROCK_REGION en tus funciones Lambda
+# Verifica con: aws lambda get-function-configuration --function-name alex-planner --query "Environment.Variables.BEDROCK_REGION"
+bedrock_region = "us-east-1"
+
+# ID del modelo de Bedrock a monitorizar en los dashboards
+# Valores comunes:
+# - amazon.nova-pro-v1:0 (Amazon Nova Pro)
+# - us.amazon.nova-pro-v1:0 (Nova Pro cross-region)
+# - anthropic.claude-3-5-sonnet-20241022-v2:0 (Claude 3.5 Sonnet)
+# Verifica tus métricas en CloudWatch para el ModelId exacto que estás utilizando
+bedrock_model_id = "amazon.nova-pro-v1:0"

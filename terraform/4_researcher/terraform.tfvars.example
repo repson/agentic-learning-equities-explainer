@@ -1,0 +1,17 @@
+# Parte 4: Configuración del Agente Researcher
+# Copia este archivo a terraform.tfvars y actualízalo con tus valores
+
+# Tu región de AWS para App Runner (puede ser cualquier región que soporte App Runner)
+aws_region = "us-east-1"
+
+# Tu clave API de OpenAI (obtenla en https://platform.openai.com/api-keys)
+openai_api_key = "sk-..."
+
+# Endpoint de la API desde la Parte 3 (obténlo del output de Terraform o consola API Gateway)
+alex_api_endpoint = "https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod/ingest"
+
+# API key desde la Parte 3 (obtenla de la consola de API Gateway)
+alex_api_key = "tu-api-key-aquí"
+
+# Habilitar programador automatizado de investigación (opcional, por defecto es false)
+scheduler_enabled = false
