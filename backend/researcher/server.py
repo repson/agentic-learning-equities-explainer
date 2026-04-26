@@ -43,7 +43,7 @@ async def run_research_agent(topic: str = None) -> str:
 
     # Por favor, sobrescribe estas variables con la región que usas
     # Otras opciones: us-west-2 (para modelos OSS de OpenAI) y eu-central-1
-    REGION = "us-east-1"
+    REGION = "eu-west-1"
     os.environ["AWS_REGION_NAME"] = REGION  # Variable preferida por LiteLLM
     os.environ["AWS_REGION"] = REGION  # Estándar Boto3
     os.environ["AWS_DEFAULT_REGION"] = REGION  # Alternativa
@@ -54,7 +54,7 @@ async def run_research_agent(topic: str = None) -> str:
     # bedrock/openai.gpt-oss-120b-1:0 para modelos OSS de OpenAI
     # bedrock/converse/us.anthropic.claude-sonnet-4-20250514-v1:0 para Claude Sonnet 4
     # NOTA: se necesita nova-pro para soportar herramientas y MCP servers; nova-lite no es suficiente - gracias Yuelin L.!
-    MODEL = "bedrock/us.amazon.nova-pro-v1:0"
+    MODEL = "bedrock/eu.amazon.nova-pro-v1:0"
     model = LitellmModel(model=MODEL)
 
     # Crear y ejecutar el agente con el servidor MCP

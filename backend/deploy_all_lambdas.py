@@ -49,7 +49,7 @@ def taint_and_deploy_via_terraform() -> bool:
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode == 0 or "already" in result.stderr:
             print(f"      ✓ {func} marcada para recreación")
         elif "No such resource instance" in result.stderr:
