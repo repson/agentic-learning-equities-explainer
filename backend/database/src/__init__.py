@@ -5,6 +5,7 @@ Proporciona modelos de base de datos, esquemas y cliente de la Data API
 
 from .client import DataAPIClient
 from .models import Database
+from .audit import AuditLogger
 from .schemas import (
     # Tipos
     RegionType,
@@ -32,6 +33,7 @@ from .schemas import (
 __all__ = [
     'Database',
     'DataAPIClient',
+    'AuditLogger',
     'InstrumentCreate',
     'UserCreate',
     'AccountCreate',

@@ -8,6 +8,7 @@ import asyncio
 import logging
 from typing import Dict, Any
 from datetime import datetime, timezone
+import time
 
 from agents import Agent, Runner, trace
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -20,7 +21,7 @@ except ImportError:
     pass
 
 # Importar paquete de base de datos
-from src import Database
+from src import Database, AuditLogger
 
 from templates import RETIREMENT_INSTRUCTIONS
 from agent import create_agent
@@ -81,6 +82,7 @@ def get_user_preferences(job_id: str) -> Dict[str, Any]:
 )
 async def run_retirement_agent(job_id: str, portfolio_data: Dict[str, Any]) -> Dict[str, Any]:
     """Ejecutar el agente especialista en jubilación."""
+    start_time = time.perf_counter()
     job = Database().jobs.find_by_id(job_id)
     user_id = job.get("clerk_user_id") if job else None
     log_structured_event("RETIREMENT_STARTED", job_id, user_id=user_id)
@@ -93,6 +95,7 @@ async def run_retirement_agent(job_id: str, portfolio_data: Dict[str, Any]) -> D
     
     # Crear agente (simplificado - sin herramientas ni contexto)
     model, tools, task = create_agent(job_id, portfolio_data, user_preferences, db)
+    model_used = os.getenv("BEDROCK_MODEL_ID", "unknown")
     
     # Ejecutar agente (simplificado - sin contexto)
     with trace("Agente de Jubilación"):
@@ -129,6 +132,24 @@ async def run_retirement_agent(job_id: str, portfolio_data: Dict[str, Any]) -> D
             user_id=user_id,
             status="success" if success else "failed",
             analysis_length=len(result.final_output) if result.final_output else 0,
+        )
+
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        AuditLogger.log_ai_decision(
+            agent_name="retirement",
+            job_id=job_id,
+            input_data={
+                "task": task,
+                "user_preferences": user_preferences,
+                "portfolio_accounts": len(portfolio_data.get("accounts", [])),
+            },
+            output_data={
+                "success": success,
+                "analysis_length": len(analysis_text) if analysis_text else 0,
+                "message": "retirement_analysis_generated",
+            },
+            model_used=model_used,
+            duration_ms=duration_ms,
         )
         
         return {

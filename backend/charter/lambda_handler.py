@@ -8,6 +8,7 @@ import asyncio
 import logging
 from typing import Dict, Any
 from datetime import datetime, timezone
+import time
 
 from agents import Agent, Runner, trace
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -20,7 +21,7 @@ except ImportError:
     pass
 
 # Importar el paquete de base de datos
-from src import Database
+from src import Database, AuditLogger
 
 from templates import CHARTER_INSTRUCTIONS
 from agent import create_agent, validate_chart_data
@@ -56,9 +57,11 @@ def truncate_response(text: str, max_length: int = 50000) -> str:
 )
 async def run_charter_agent(job_id: str, portfolio_data: Dict[str, Any], db=None) -> Dict[str, Any]:
     """Ejecuta el agente charter para generar datos de visualización."""
+    start_time = time.perf_counter()
     
     # Crear agente sin herramientas - la salida será JSON
     model, task = create_agent(job_id, portfolio_data, db)
+    model_used = os.getenv("BEDROCK_MODEL_ID", "unknown")
     
     # Ejecutar el agente - sin herramientas, sin contexto
     with trace("Charter Agent"):
@@ -140,12 +143,27 @@ async def run_charter_agent(job_id: str, portfolio_data: Dict[str, Any], db=None
                 logger.error(f"Charter: No se encontró estructura JSON en la salida")
                 logger.error(f"Charter: Vista previa de la salida: {output[:500]}...")
         
-        return {
+        result_payload = {
             'success': charts_saved,
             'message': f'Se generaron {len(charts_data) if charts_data else 0} gráficos' if charts_saved else 'No se pudo generar gráficos',
             'charts_generated': len(charts_data) if charts_data else 0,
             'chart_keys': list(charts_data.keys()) if charts_data else []
         }
+
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        AuditLogger.log_ai_decision(
+            agent_name="charter",
+            job_id=job_id,
+            input_data={
+                "task": task,
+                "portfolio_accounts": len(portfolio_data.get("accounts", [])),
+            },
+            output_data=result_payload,
+            model_used=model_used,
+            duration_ms=duration_ms,
+        )
+
+        return result_payload
 
 def lambda_handler(event, context):
     """

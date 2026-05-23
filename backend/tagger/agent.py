@@ -3,9 +3,11 @@ Agente InstrumentTagger - Clasifica instrumentos financieros utilizando OpenAI A
 """
 
 import os
+import json
 from typing import List
 import logging
 from decimal import Decimal
+from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from agents import Agent, Runner, trace
@@ -115,6 +117,10 @@ class InstrumentClassification(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # La justificacion se declara primero para favorecer su generacion temprana
+    rationale: str = Field(
+        description="Explicacion detallada de por que se eligio esta clasificacion"
+    )
     symbol: str = Field(description="Símbolo (ticker) del instrumento")
     name: str = Field(description="Nombre del instrumento")
     instrument_type: str = Field(description="Tipo: etf, acción, fondo_mutuo, fondo_bonos, etc.")
@@ -219,7 +225,21 @@ async def classify_instrument(
             result = await Runner.run(agent, input=task, max_turns=5)
 
             # Extraer la salida estructurada de RunResult usando final_output_as
-            return result.final_output_as(InstrumentClassification)
+            classification = result.final_output_as(InstrumentClassification)
+
+            # Registrar justificacion para auditoria
+            logger.info(
+                json.dumps(
+                    {
+                        "event": "CLASSIFICATION_RATIONALE",
+                        "symbol": classification.symbol,
+                        "rationale": classification.rationale,
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                )
+            )
+
+            return classification
 
     except Exception as e:
         logger.error(f"Error al clasificar {symbol}: {e}")

@@ -8,6 +8,7 @@ import asyncio
 import logging
 from typing import Dict, Any
 from datetime import datetime, timezone
+import time
 
 from agents import Agent, Runner, trace
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -24,7 +25,7 @@ except ImportError:
     pass
 
 # Importar el paquete de base de datos
-from src import Database
+from src import Database, AuditLogger
 
 from templates import REPORTER_INSTRUCTIONS
 from agent import create_agent, ReporterContext
@@ -70,9 +71,11 @@ async def run_reporter_agent(
     observability=None,
 ) -> Dict[str, Any]:
     """Ejecuta el agente generador de reportes para generar el análisis."""
+    start_time = time.perf_counter()
 
     # Crear agente con herramientas y contexto
     model, tools, task, context = create_agent(job_id, portfolio_data, user_data, db)
+    model_used = os.getenv("BEDROCK_MODEL_ID", "unknown")
 
     # Ejecutar el agente con contexto
     with trace("Reporter Agent"):
@@ -119,6 +122,24 @@ async def run_reporter_agent(
             user_id=user_id,
             status="success" if success else "failed",
             report_length=len(response) if response else 0,
+        )
+
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        AuditLogger.log_ai_decision(
+            agent_name="reporter",
+            job_id=job_id,
+            input_data={
+                "task": task,
+                "portfolio_accounts": len(portfolio_data.get("accounts", [])),
+                "user_data": user_data,
+            },
+            output_data={
+                "success": success,
+                "report_length": len(response) if response else 0,
+                "message": "report_generated",
+            },
+            model_used=model_used,
+            duration_ms=duration_ms,
         )
 
         return {

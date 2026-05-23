@@ -8,6 +8,7 @@ import asyncio
 import logging
 from typing import Dict, Any
 from datetime import datetime, timezone
+import time
 
 from agents import Agent, Runner, trace
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -20,7 +21,7 @@ except ImportError:
     pass
 
 # Importar paquete de base de datos
-from src import Database
+from src import Database, AuditLogger
 
 from templates import ORCHESTRATOR_INSTRUCTIONS
 from agent import create_agent, handle_missing_instruments, load_portfolio_summary
@@ -62,6 +63,7 @@ def truncate_response(text: str, max_length: int = 50000) -> str:
 async def run_orchestrator(job_id: str) -> None:
     """Ejecuta el agente orquestador para coordinar el análisis de portafolio."""
     start_time = datetime.now(timezone.utc)
+    start_perf = time.perf_counter()
     user_id = None
 
     try:
@@ -96,6 +98,7 @@ async def run_orchestrator(job_id: str) -> None:
 
         # Crear agente con herramientas y contexto
         model, tools, task, context = create_agent(job_id, portfolio_summary, db)
+        model_used = os.getenv("BEDROCK_MODEL_ID", "unknown")
         
         # Ejecutar el orquestador
         with trace("Orquestador del Planificador"):
@@ -118,6 +121,22 @@ async def run_orchestrator(job_id: str) -> None:
             
             # Marcar trabajo como completado después de que finalicen todos los agentes
             db.jobs.update_status(job_id, "completed")
+            duration_ms = int((time.perf_counter() - start_perf) * 1000)
+            AuditLogger.log_ai_decision(
+                agent_name="planner",
+                job_id=job_id,
+                input_data={
+                    "task": task,
+                    "portfolio_summary": portfolio_summary,
+                    "invoked_agents": ["reporter", "charter", "retirement"],
+                },
+                output_data={
+                    "status": "completed",
+                    "message": "planner_orchestration_completed",
+                },
+                model_used=model_used,
+                duration_ms=duration_ms,
+            )
             end_time = datetime.now(timezone.utc)
             log_structured_event(
                 "PLANNER_COMPLETED",

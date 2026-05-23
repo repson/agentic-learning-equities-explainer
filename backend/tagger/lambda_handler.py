@@ -9,8 +9,9 @@ import asyncio
 import logging
 from typing import List, Dict, Any
 from datetime import datetime, timezone
+import time
 
-from src import Database
+from src import Database, AuditLogger
 from src.schemas import InstrumentCreate
 from agent import tag_instruments, classification_to_db_format
 from observability import observe
@@ -33,7 +34,9 @@ def log_structured_event(event: str, job_id: str = None, user_id: str = None, **
     payload.update(details)
     logger.info(json.dumps(payload))
 
-async def process_instruments(instruments: List[Dict[str, str]]) -> Dict[str, Any]:
+async def process_instruments(
+    instruments: List[Dict[str, str]], job_id: str = "N/A"
+) -> Dict[str, Any]:
     """
     Procesa y clasifica instrumentos de manera asíncrona.
     
@@ -43,6 +46,7 @@ async def process_instruments(instruments: List[Dict[str, str]]) -> Dict[str, An
     Returns:
         Resultados del procesamiento
     """
+    start_time = time.perf_counter()
     # Ejecutar la clasificación
     logger.info(f"Clasificando {len(instruments)} instrumentos")
     classifications = await tag_instruments(instruments)
@@ -87,7 +91,7 @@ async def process_instruments(instruments: List[Dict[str, str]]) -> Dict[str, An
             })
     
     # Preparar la respuesta (convertir modelos Pydantic a diccionarios)
-    return {
+    result_payload = {
         'tagged': len(classifications),
         'updated': updated,
         'errors': errors,
@@ -104,6 +108,19 @@ async def process_instruments(instruments: List[Dict[str, str]]) -> Dict[str, An
             for c in classifications
         ]
     }
+
+    model_used = os.getenv("BEDROCK_MODEL_ID", "unknown")
+    duration_ms = int((time.perf_counter() - start_time) * 1000)
+    AuditLogger.log_ai_decision(
+        agent_name="tagger",
+        job_id=job_id,
+        input_data={"instrument_count": len(instruments), "symbols": [i.get("symbol") for i in instruments]},
+        output_data={"tagged": result_payload["tagged"], "errors": len(errors)},
+        model_used=model_used,
+        duration_ms=duration_ms,
+    )
+
+    return result_payload
 
 def lambda_handler(event, context):
     """
@@ -145,7 +162,7 @@ def lambda_handler(event, context):
                 }
 
             # Procesar todos los instrumentos en un único contexto asíncrono
-            result = asyncio.run(process_instruments(instruments))
+            result = asyncio.run(process_instruments(instruments, job_id=job_id or "N/A"))
             end_time = datetime.now(timezone.utc)
             log_structured_event(
                 "TAGGER_COMPLETED",
