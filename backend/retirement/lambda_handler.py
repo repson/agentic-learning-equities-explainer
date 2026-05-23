@@ -7,7 +7,7 @@ import json
 import asyncio
 import logging
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from agents import Agent, Runner, trace
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -28,6 +28,17 @@ from observability import observe
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+
+def log_structured_event(event: str, job_id: str, user_id: str = None, **details) -> None:
+    payload = {
+        "event": event,
+        "job_id": job_id,
+        "user_id": user_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    payload.update(details)
+    logger.info(json.dumps(payload))
 
 def get_user_preferences(job_id: str) -> Dict[str, Any]:
     """Cargar preferencias del usuario desde la base de datos."""
@@ -62,6 +73,9 @@ def get_user_preferences(job_id: str) -> Dict[str, Any]:
 )
 async def run_retirement_agent(job_id: str, portfolio_data: Dict[str, Any]) -> Dict[str, Any]:
     """Ejecutar el agente especialista en jubilación."""
+    job = Database().jobs.find_by_id(job_id)
+    user_id = job.get("clerk_user_id") if job else None
+    log_structured_event("RETIREMENT_STARTED", job_id, user_id=user_id)
     
     # Obtener preferencias del usuario
     user_preferences = get_user_preferences(job_id)
@@ -98,6 +112,14 @@ async def run_retirement_agent(job_id: str, portfolio_data: Dict[str, Any]) -> D
         
         if not success:
             logger.error(f"No se pudo guardar el análisis de jubilación para el trabajo {job_id}")
+
+        log_structured_event(
+            "RETIREMENT_COMPLETED",
+            job_id,
+            user_id=user_id,
+            status="success" if success else "failed",
+            analysis_length=len(result.final_output) if result.final_output else 0,
+        )
         
         return {
             'success': success,
@@ -117,6 +139,9 @@ def lambda_handler(event, context):
     """
     # Envuelve todo el manejador con el contexto de observabilidad
     with observe():
+        start_time = datetime.now(timezone.utc)
+        job_id = None
+        user_id = None
         try:
             logger.info(f"Lambda de Jubilación invocada con el evento: {json.dumps(event)[:500]}")
 
@@ -130,6 +155,10 @@ def lambda_handler(event, context):
                     'statusCode': 400,
                     'body': json.dumps({'error': 'job_id es obligatorio'})
                 }
+
+            job = Database().jobs.find_by_id(job_id)
+            if job:
+                user_id = job.get("clerk_user_id")
 
             portfolio_data = event.get('portfolio_data')
             if not portfolio_data:
@@ -158,6 +187,15 @@ def lambda_handler(event, context):
             # Ejecutar el agente
             result = asyncio.run(run_retirement_agent(job_id, portfolio_data))
 
+            end_time = datetime.now(timezone.utc)
+            log_structured_event(
+                "RETIREMENT_FINISHED",
+                job_id,
+                user_id=user_id,
+                status="success",
+                duration_seconds=(end_time - start_time).total_seconds(),
+            )
+
             logger.info(f"Jubilación completada para el trabajo {job_id}")
 
             return {
@@ -166,6 +204,16 @@ def lambda_handler(event, context):
             }
 
         except Exception as e:
+            if job_id:
+                end_time = datetime.now(timezone.utc)
+                log_structured_event(
+                    "RETIREMENT_FINISHED",
+                    job_id,
+                    user_id=user_id,
+                    status="failed",
+                    error=str(e),
+                    duration_seconds=(end_time - start_time).total_seconds(),
+                )
             logger.error(f"Error en jubilación: {e}", exc_info=True)
             return {
                 'statusCode': 500,

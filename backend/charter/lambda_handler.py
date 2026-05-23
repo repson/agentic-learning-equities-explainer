@@ -7,6 +7,7 @@ import json
 import asyncio
 import logging
 from typing import Dict, Any
+from datetime import datetime, timezone
 
 from agents import Agent, Runner, trace
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -27,6 +28,17 @@ from observability import observe
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+
+def log_structured_event(event: str, job_id: str, user_id: str = None, **details) -> None:
+    payload = {
+        "event": event,
+        "job_id": job_id,
+        "user_id": user_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    payload.update(details)
+    logger.info(json.dumps(payload))
 
 @retry(
     retry=retry_if_exception_type(RateLimitError),
@@ -136,6 +148,9 @@ def lambda_handler(event, context):
     """
     # Envolver todo el manejador con contexto de observabilidad
     with observe():
+        start_time = datetime.now(timezone.utc)
+        user_id = None
+        job_id = None
         try:
             logger.info(f"Charter Lambda invocado con llaves de evento: {list(event.keys()) if isinstance(event, dict) else 'no es un dict'}")
 
@@ -206,10 +221,27 @@ def lambda_handler(event, context):
                         'body': json.dumps({'error': f'No se pudo cargar los datos del portafolio: {str(e)}'})
                     }
 
+            if not user_id:
+                job = db.jobs.find_by_id(job_id)
+                if job:
+                    user_id = job.get('clerk_user_id')
+
+            log_structured_event("CHARTER_STARTED", job_id, user_id=user_id)
+
             logger.info(f"Charter: Procesando job {job_id}")
 
             # Ejecutar el agente
             result = asyncio.run(run_charter_agent(job_id, portfolio_data, db))
+
+            end_time = datetime.now(timezone.utc)
+            log_structured_event(
+                "CHARTER_COMPLETED",
+                job_id,
+                user_id=user_id,
+                status="success",
+                charts_generated=result.get('charts_generated', 0),
+                duration_seconds=(end_time - start_time).total_seconds(),
+            )
 
             logger.info(f"Charter completado para el job {job_id}: {result}")
 
@@ -219,6 +251,16 @@ def lambda_handler(event, context):
             }
 
         except Exception as e:
+            if job_id:
+                end_time = datetime.now(timezone.utc)
+                log_structured_event(
+                    "CHARTER_COMPLETED",
+                    job_id,
+                    user_id=user_id,
+                    status="failed",
+                    error=str(e),
+                    duration_seconds=(end_time - start_time).total_seconds(),
+                )
             logger.error(f"Error en charter: {e}", exc_info=True)
             return {
                 'statusCode': 500,

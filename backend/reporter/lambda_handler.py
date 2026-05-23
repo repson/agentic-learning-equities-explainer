@@ -7,7 +7,7 @@ import json
 import asyncio
 import logging
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from agents import Agent, Runner, trace
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -34,6 +34,17 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
+def log_structured_event(event: str, job_id: str, user_id: str = None, **details) -> None:
+    payload = {
+        "event": event,
+        "job_id": job_id,
+        "user_id": user_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    payload.update(details)
+    logger.info(json.dumps(payload))
+
+
 @retry(
     retry=retry_if_exception_type(RateLimitError),
     stop=stop_after_attempt(5),
@@ -46,6 +57,7 @@ async def run_reporter_agent(
     job_id: str,
     portfolio_data: Dict[str, Any],
     user_data: Dict[str, Any],
+    user_id: str,
     db=None,
     observability=None,
 ) -> Dict[str, Any]:
@@ -93,6 +105,14 @@ async def run_reporter_agent(
         if not success:
             logger.error(f"No se pudo guardar el informe para el trabajo {job_id}")
 
+        log_structured_event(
+            "REPORTER_COMPLETED",
+            job_id,
+            user_id=user_id,
+            status="success" if success else "failed",
+            report_length=len(response) if response else 0,
+        )
+
         return {
             "success": success,
             "message": "Informe generado y almacenado"
@@ -115,6 +135,9 @@ def lambda_handler(event, context):
     """
     # Encapsular todo el manejador en el contexto de observabilidad
     with observe() as observability:
+        start_time = datetime.now(timezone.utc)
+        user_id = None
+        job_id = None
         try:
             logger.info(f"Lambda del Reportero invocada con evento: {json.dumps(event)[:500]}")
 
@@ -186,6 +209,7 @@ def lambda_handler(event, context):
                 try:
                     job = db.jobs.find_by_id(job_id)
                     if job and job.get("clerk_user_id"):
+                        user_id = job["clerk_user_id"]
                         status = f"ID de Trabajo: {job_id} ID de Usuario Clerk: {job['clerk_user_id']}"
                         if observability:
                             observability.create_event(
@@ -208,9 +232,25 @@ def lambda_handler(event, context):
                     logger.warning(f"No se pudieron cargar datos de usuario: {e}. Usando valores predeterminados.")
                     user_data = {"years_until_retirement": 30, "target_retirement_income": 80000}
 
+            if not user_id:
+                job = db.jobs.find_by_id(job_id)
+                if job:
+                    user_id = job.get("clerk_user_id")
+
+            log_structured_event("REPORTER_STARTED", job_id, user_id=user_id)
+
             # Ejecutar el agente
             result = asyncio.run(
-                run_reporter_agent(job_id, portfolio_data, user_data, db, observability)
+                run_reporter_agent(job_id, portfolio_data, user_data, user_id, db, observability)
+            )
+
+            end_time = datetime.now(timezone.utc)
+            log_structured_event(
+                "REPORTER_FINISHED",
+                job_id,
+                user_id=user_id,
+                status="success",
+                duration_seconds=(end_time - start_time).total_seconds(),
             )
 
             logger.info(f"Reportero completado para el trabajo {job_id}")
@@ -218,6 +258,16 @@ def lambda_handler(event, context):
             return {"statusCode": 200, "body": json.dumps(result)}
 
         except Exception as e:
+            if job_id:
+                end_time = datetime.now(timezone.utc)
+                log_structured_event(
+                    "REPORTER_FINISHED",
+                    job_id,
+                    user_id=user_id,
+                    status="failed",
+                    error=str(e),
+                    duration_seconds=(end_time - start_time).total_seconds(),
+                )
             logger.error(f"Error en el reportero: {e}", exc_info=True)
             return {"statusCode": 500, "body": json.dumps({"success": False, "error": str(e)})}
 

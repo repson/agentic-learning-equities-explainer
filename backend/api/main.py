@@ -36,6 +36,17 @@ load_dotenv(override=True)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+class StructuredLogger:
+    @staticmethod
+    def log_event(event_type, user_id=None, details=None):
+        log_entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": event_type,
+            "user_id": user_id,
+            "details": details
+        }
+        logger.info(json.dumps(log_entry))
+
 # Inicializar aplicación FastAPI
 app = FastAPI(
     title="Alex Financial Advisor API",
@@ -500,6 +511,17 @@ async def trigger_analysis(request: AnalyzeRequest, clerk_user_id: str = Depends
         if not user:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+        accounts = db.accounts.find_by_user(clerk_user_id)
+        StructuredLogger.log_event(
+            "ANALYSIS_TRIGGERED",
+            user_id=clerk_user_id,
+            details={
+                "analysis_type": request.analysis_type,
+                "options": request.options,
+                "account_count": len(accounts),
+            },
+        )
+
         # Crear trabajo
         job_id = db.jobs.create_job(
             clerk_user_id=clerk_user_id,
@@ -523,8 +545,18 @@ async def trigger_analysis(request: AnalyzeRequest, clerk_user_id: str = Depends
                 QueueUrl=SQS_QUEUE_URL,
                 MessageBody=json.dumps(message)
             )
+            StructuredLogger.log_event(
+                "ANALYSIS_ENQUEUED",
+                user_id=clerk_user_id,
+                details={"job_id": str(job_id), "queue_configured": True},
+            )
             logger.info(f"Enviado trabajo de análisis a SQS: {job_id}")
         else:
+            StructuredLogger.log_event(
+                "ANALYSIS_NOT_ENQUEUED",
+                user_id=clerk_user_id,
+                details={"job_id": str(job_id), "queue_configured": False},
+            )
             logger.warning("SQS_QUEUE_URL no está configurada, el trabajo se ha creado pero no ha sido encolado")
 
         return AnalyzeResponse(

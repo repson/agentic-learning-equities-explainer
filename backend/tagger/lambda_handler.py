@@ -8,6 +8,7 @@ import json
 import asyncio
 import logging
 from typing import List, Dict, Any
+from datetime import datetime, timezone
 
 from src import Database
 from src.schemas import InstrumentCreate
@@ -20,6 +21,17 @@ logger.setLevel(logging.INFO)
 
 # Inicializar base de datos
 db = Database()
+
+
+def log_structured_event(event: str, job_id: str = None, user_id: str = None, **details) -> None:
+    payload = {
+        "event": event,
+        "job_id": job_id,
+        "user_id": user_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    payload.update(details)
+    logger.info(json.dumps(payload))
 
 async def process_instruments(instruments: List[Dict[str, str]]) -> Dict[str, Any]:
     """
@@ -107,9 +119,24 @@ def lambda_handler(event, context):
     """
     # Envolver todo el handler en el contexto de observabilidad
     with observe():
+        start_time = datetime.now(timezone.utc)
+        job_id = event.get("job_id") if isinstance(event, dict) else None
+        user_id = None
         try:
             # Parsear el evento
             instruments = event.get('instruments', [])
+
+            if job_id:
+                job = db.jobs.find_by_id(job_id)
+                if job:
+                    user_id = job.get("clerk_user_id")
+
+            log_structured_event(
+                "TAGGER_STARTED",
+                job_id=job_id,
+                user_id=user_id,
+                instrument_count=len(instruments),
+            )
 
             if not instruments:
                 return {
@@ -119,6 +146,16 @@ def lambda_handler(event, context):
 
             # Procesar todos los instrumentos en un único contexto asíncrono
             result = asyncio.run(process_instruments(instruments))
+            end_time = datetime.now(timezone.utc)
+            log_structured_event(
+                "TAGGER_COMPLETED",
+                job_id=job_id,
+                user_id=user_id,
+                status="success",
+                tagged=result.get("tagged", 0),
+                errors=len(result.get("errors", [])),
+                duration_seconds=(end_time - start_time).total_seconds(),
+            )
 
             return {
                 'statusCode': 200,
@@ -126,6 +163,15 @@ def lambda_handler(event, context):
             }
 
         except Exception as e:
+            end_time = datetime.now(timezone.utc)
+            log_structured_event(
+                "TAGGER_COMPLETED",
+                job_id=job_id,
+                user_id=user_id,
+                status="failed",
+                error=str(e),
+                duration_seconds=(end_time - start_time).total_seconds(),
+            )
             logger.error(f"Error en lambda handler: {e}")
             return {
                 'statusCode': 500,

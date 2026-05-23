@@ -7,6 +7,7 @@ import json
 import asyncio
 import logging
 from typing import Dict, Any
+from datetime import datetime, timezone
 
 from agents import Agent, Runner, trace
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -32,6 +33,18 @@ logger.setLevel(logging.INFO)
 # Inicializar base de datos
 db = Database()
 
+
+def log_structured_event(event: str, job_id: str, user_id: str = None, **details) -> None:
+    """Emitir logs estructurados para observabilidad enterprise."""
+    payload = {
+        "event": event,
+        "job_id": job_id,
+        "user_id": user_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    payload.update(details)
+    logger.info(json.dumps(payload))
+
 @retry(
     retry=retry_if_exception_type(RateLimitError),
     stop=stop_after_attempt(5),
@@ -40,7 +53,18 @@ db = Database()
 )
 async def run_orchestrator(job_id: str) -> None:
     """Ejecuta el agente orquestador para coordinar el análisis de portafolio."""
+    start_time = datetime.now(timezone.utc)
+    user_id = None
+
     try:
+        job = db.jobs.find_by_id(job_id)
+        if not job:
+            logger.error(f"Planificador: Trabajo {job_id} no encontrado")
+            return
+
+        user_id = job.get("clerk_user_id")
+        log_structured_event("PLANNER_STARTED", job_id, user_id=user_id)
+
         # Actualizar estado del trabajo a en ejecución
         db.jobs.update_status(job_id, 'running')
         
@@ -53,7 +77,15 @@ async def run_orchestrator(job_id: str) -> None:
 
         # Cargar resumen de portafolio (solo estadísticas, no datos completos)
         portfolio_summary = await asyncio.to_thread(load_portfolio_summary, job_id, db)
-        
+
+        for agent_name in ["reporter", "charter", "retirement"]:
+            log_structured_event(
+                "AGENT_INVOKED",
+                job_id,
+                user_id=user_id,
+                agent=agent_name,
+            )
+
         # Crear agente con herramientas y contexto
         model, tools, task, context = create_agent(job_id, portfolio_summary, db)
         
@@ -76,9 +108,26 @@ async def run_orchestrator(job_id: str) -> None:
             
             # Marcar trabajo como completado después de que finalicen todos los agentes
             db.jobs.update_status(job_id, "completed")
+            end_time = datetime.now(timezone.utc)
+            log_structured_event(
+                "PLANNER_COMPLETED",
+                job_id,
+                user_id=user_id,
+                status="success",
+                duration_seconds=(end_time - start_time).total_seconds(),
+            )
             logger.info(f"Planificador: Trabajo {job_id} completado exitosamente")
-            
+
     except Exception as e:
+        end_time = datetime.now(timezone.utc)
+        log_structured_event(
+            "PLANNER_COMPLETED",
+            job_id,
+            user_id=user_id,
+            status="failed",
+            error=str(e),
+            duration_seconds=(end_time - start_time).total_seconds(),
+        )
         logger.error(f"Planificador: Error en la orquestación: {e}", exc_info=True)
         db.jobs.update_status(job_id, 'failed', error_message=str(e))
         raise
