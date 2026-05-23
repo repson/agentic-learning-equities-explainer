@@ -133,14 +133,14 @@ resource "aws_iam_role_policy" "api_lambda_aurora" {
           "rds-data:CommitTransaction",
           "rds-data:RollbackTransaction"
         ]
-        Resource = data.terraform_remote_state.database.outputs.aurora_cluster_arn
+        Resource = try(data.terraform_remote_state.database.outputs.aurora_cluster_arn, "*")
       },
       {
         Effect = "Allow"
         Action = [
           "secretsmanager:GetSecretValue"
         ]
-        Resource = data.terraform_remote_state.database.outputs.aurora_secret_arn
+        Resource = try(data.terraform_remote_state.database.outputs.aurora_secret_arn, "*")
       }
     ]
   })
@@ -160,7 +160,7 @@ resource "aws_iam_role_policy" "api_lambda_sqs" {
           "sqs:SendMessage",
           "sqs:GetQueueAttributes"
         ]
-        Resource = data.terraform_remote_state.agents.outputs.sqs_queue_arn
+        Resource = try(data.terraform_remote_state.agents.outputs.sqs_queue_arn, "*")
       }
     ]
   })
@@ -205,13 +205,13 @@ resource "aws_lambda_function" "api" {
   environment {
     variables = {
       # Configuración de base de datos desde la Parte 5
-      AURORA_CLUSTER_ARN = data.terraform_remote_state.database.outputs.aurora_cluster_arn
-      AURORA_SECRET_ARN  = data.terraform_remote_state.database.outputs.aurora_secret_arn
-      AURORA_DATABASE    = data.terraform_remote_state.database.outputs.database_name
+      AURORA_CLUSTER_ARN = try(data.terraform_remote_state.database.outputs.aurora_cluster_arn, "")
+      AURORA_SECRET_ARN  = try(data.terraform_remote_state.database.outputs.aurora_secret_arn, "")
+      AURORA_DATABASE    = try(data.terraform_remote_state.database.outputs.database_name, "alex")
       DEFAULT_AWS_REGION = var.aws_region
 
       # Configuración de SQS desde la Parte 6
-      SQS_QUEUE_URL = data.terraform_remote_state.agents.outputs.sqs_queue_url
+      SQS_QUEUE_URL = try(data.terraform_remote_state.agents.outputs.sqs_queue_url, "")
 
       # Configuración de Clerk para validación JWT
       CLERK_JWKS_URL = var.clerk_jwks_url
@@ -388,4 +388,3 @@ resource "aws_cloudfront_distribution" "main" {
     cloudfront_default_certificate = true
   }
 }
-
