@@ -6,12 +6,14 @@ import os
 import json
 import boto3
 import logging
+import asyncio
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass
 
 from agents import function_tool, RunContextWrapper
 from agents.extensions.models.litellm_model import LitellmModel
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger()
 
@@ -46,6 +48,70 @@ RETIREMENT_FUNCTION = os.getenv("RETIREMENT_FUNCTION", "alex-retirement")
 MOCK_LAMBDAS = os.getenv("MOCK_LAMBDAS", "false").lower() == "true"
 
 
+class AgentTemporaryError(Exception):
+    """Error temporal de agente que debe reintentarse."""
+
+
+def _is_retryable_lambda_error(result: Dict[str, Any]) -> bool:
+    """Detectar respuestas de Lambda que ameritan reintento."""
+    error_type = str(result.get("error_type", "")).upper()
+    if error_type in {"RATE_LIMIT", "THROTTLED", "TIMEOUT"}:
+        return True
+
+    status_code = result.get("statusCode")
+    if isinstance(status_code, int) and status_code >= 500:
+        return True
+
+    error_text = str(result.get("error", "")).lower()
+    if any(token in error_text for token in ["throttl", "timeout", "rate limit", "too many requests"]):
+        return True
+
+    return False
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((AgentTemporaryError, TimeoutError)),
+)
+async def invoke_agent_with_retry(
+    agent_name: str, payload: Dict[str, Any], function_name: Optional[str] = None
+) -> Dict[str, Any]:
+    """Invocar agente con reintentos automaticos para errores temporales."""
+    lambda_name = function_name or f"alex-{agent_name.lower()}"
+
+    try:
+        response = await asyncio.to_thread(
+            lambda_client.invoke,
+            FunctionName=lambda_name,
+            InvocationType="RequestResponse",
+            Payload=json.dumps(payload),
+        )
+
+        result = json.loads(response["Payload"].read())
+
+        if isinstance(result, dict) and "statusCode" in result and "body" in result:
+            if isinstance(result["body"], str):
+                try:
+                    result = json.loads(result["body"])
+                except json.JSONDecodeError:
+                    result = {"message": result["body"]}
+            else:
+                result = result["body"]
+
+        if isinstance(result, dict) and _is_retryable_lambda_error(result):
+            raise AgentTemporaryError(f"Error temporal detectado en {agent_name}: {result}")
+
+        return result
+
+    except Exception as e:
+        logger.warning(f"Invocacion de agente {agent_name} fallida: {e}")
+        error_msg = str(e).lower()
+        if any(token in error_msg for token in ["throttl", "timeout", "rate limit", "too many requests"]):
+            raise AgentTemporaryError(f"Error temporal en {agent_name}: {e}")
+        raise
+
+
 @dataclass
 class PlannerContext:
     """Contexto para las herramientas del agente de planificación."""
@@ -65,23 +131,8 @@ async def invoke_lambda_agent(
     try:
         logger.info(f"Invocando Lambda de {agent_name}: {function_name}")
 
-        response = lambda_client.invoke(
-            FunctionName=function_name,
-            InvocationType="RequestResponse",
-            Payload=json.dumps(payload),
-        )
-
-        result = json.loads(response["Payload"].read())
-
-        # Desempaquetar respuesta Lambda si tiene el formato estándar
-        if isinstance(result, dict) and "statusCode" in result and "body" in result:
-            if isinstance(result["body"], str):
-                try:
-                    result = json.loads(result["body"])
-                except json.JSONDecodeError:
-                    result = {"message": result["body"]}
-            else:
-                result = result["body"]
+        # Invocacion resiliente con reintentos para errores temporales
+        result = await invoke_agent_with_retry(agent_name, payload, function_name=function_name)
 
         logger.info(f"{agent_name} completado con éxito")
         return result
@@ -131,13 +182,13 @@ def handle_missing_instruments(job_id: str, db) -> None:
         )
 
         try:
-            response = lambda_client.invoke(
-                FunctionName=TAGGER_FUNCTION,
-                InvocationType="RequestResponse",
-                Payload=json.dumps({"instruments": missing}),
+            result = asyncio.run(
+                invoke_agent_with_retry(
+                    "Tagger",
+                    {"instruments": missing},
+                    function_name=TAGGER_FUNCTION,
+                )
             )
-
-            result = json.loads(response["Payload"].read())
 
             if isinstance(result, dict) and "statusCode" in result:
                 if result["statusCode"] == 200:
@@ -148,6 +199,10 @@ def handle_missing_instruments(job_id: str, db) -> None:
                     logger.error(
                         f"Planner: InstrumentTagger falló con el status {result['statusCode']}"
                     )
+            else:
+                logger.info(
+                    f"Planner: InstrumentTagger completado - Etiquetados {len(missing)} instrumentos"
+                )
 
         except Exception as e:
             logger.error(f"Planner: Error al etiquetar instrumentos: {e}")

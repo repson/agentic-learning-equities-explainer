@@ -45,6 +45,14 @@ def log_structured_event(event: str, job_id: str, user_id: str = None, **details
     payload.update(details)
     logger.info(json.dumps(payload))
 
+
+def truncate_response(text: str, max_length: int = 50000) -> str:
+    """Asegurar que las respuestas no excedan un tamano razonable."""
+    if text and len(text) > max_length:
+        logger.warning(f"Response truncated from {len(text)} to {max_length} characters")
+        return text[:max_length] + "\n\n[Response truncated due to length]"
+    return text
+
 @retry(
     retry=retry_if_exception_type(RateLimitError),
     stop=stop_after_attempt(5),
@@ -105,6 +113,8 @@ async def run_orchestrator(job_id: str) -> None:
                 context=context,
                 max_turns=20
             )
+
+            _ = truncate_response(result.final_output)
             
             # Marcar trabajo como completado después de que finalicen todos los agentes
             db.jobs.update_status(job_id, "completed")

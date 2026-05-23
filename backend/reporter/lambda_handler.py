@@ -45,6 +45,14 @@ def log_structured_event(event: str, job_id: str, user_id: str = None, **details
     logger.info(json.dumps(payload))
 
 
+def truncate_response(text: str, max_length: int = 50000) -> str:
+    """Asegurar que las respuestas no excedan un tamano razonable."""
+    if text and len(text) > max_length:
+        logger.warning(f"Response truncated from {len(text)} to {max_length} characters")
+        return text[:max_length] + "\n\n[Response truncated due to length]"
+    return text
+
+
 @retry(
     retry=retry_if_exception_type(RateLimitError),
     stop=stop_after_attempt(5),
@@ -79,7 +87,7 @@ async def run_reporter_agent(
             max_turns=10,
         )
 
-        response = result.final_output
+        response = truncate_response(result.final_output)
 
         if observability:
             with observability.start_as_current_span(name="judge") as span:
@@ -118,7 +126,7 @@ async def run_reporter_agent(
             "message": "Informe generado y almacenado"
             if success
             else "Informe generado pero no se pudo guardar",
-            "final_output": result.final_output,
+            "final_output": response,
         }
 
 

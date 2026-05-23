@@ -40,6 +40,14 @@ def log_structured_event(event: str, job_id: str, user_id: str = None, **details
     payload.update(details)
     logger.info(json.dumps(payload))
 
+
+def truncate_response(text: str, max_length: int = 50000) -> str:
+    """Asegurar que las respuestas no excedan un tamano razonable."""
+    if text and len(text) > max_length:
+        logger.warning(f"Response truncated from {len(text)} to {max_length} characters")
+        return text[:max_length] + "\n\n[Response truncated due to length]"
+    return text
+
 @retry(
     retry=retry_if_exception_type(RateLimitError),
     stop=stop_after_attempt(5),
@@ -67,7 +75,7 @@ async def run_charter_agent(job_id: str, portfolio_data: Dict[str, Any], db=None
         )
         
         # Extraer y parsear JSON de la salida
-        output = result.final_output
+        output = truncate_response(result.final_output)
         logger.info(f"Charter: El agente completó, longitud de la salida: {len(output) if output else 0}")
         
         # Registrar la salida real para depuración

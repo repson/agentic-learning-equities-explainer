@@ -40,6 +40,14 @@ def log_structured_event(event: str, job_id: str, user_id: str = None, **details
     payload.update(details)
     logger.info(json.dumps(payload))
 
+
+def truncate_response(text: str, max_length: int = 50000) -> str:
+    """Asegurar que las respuestas no excedan un tamano razonable."""
+    if text and len(text) > max_length:
+        logger.warning(f"Response truncated from {len(text)} to {max_length} characters")
+        return text[:max_length] + "\n\n[Response truncated due to length]"
+    return text
+
 def get_user_preferences(job_id: str) -> Dict[str, Any]:
     """Cargar preferencias del usuario desde la base de datos."""
     try:
@@ -102,8 +110,10 @@ async def run_retirement_agent(job_id: str, portfolio_data: Dict[str, Any]) -> D
         )
         
         # Guardar el análisis en la base de datos
+        analysis_text = truncate_response(result.final_output)
+
         retirement_payload = {
-            'analysis': result.final_output,
+            'analysis': analysis_text,
             'generated_at': datetime.utcnow().isoformat(),
             'agent': 'retirement'
         }
@@ -124,7 +134,7 @@ async def run_retirement_agent(job_id: str, portfolio_data: Dict[str, Any]) -> D
         return {
             'success': success,
             'message': 'Análisis de jubilación completado' if success else 'Análisis completado pero falló al guardar',
-            'final_output': result.final_output
+            'final_output': analysis_text
         }
 
 def lambda_handler(event, context):
