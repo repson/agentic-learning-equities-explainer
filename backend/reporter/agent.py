@@ -14,6 +14,26 @@ from agents.extensions.models.litellm_model import LitellmModel
 logger = logging.getLogger()
 
 
+def sanitize_user_input(text: str) -> str:
+    """Remover intentos potenciales de prompt injection."""
+    dangerous_patterns = [
+        "ignore previous instructions",
+        "disregard all prior",
+        "forget everything",
+        "new instructions:",
+        "system:",
+        "assistant:",
+    ]
+
+    text_lower = text.lower()
+    for pattern in dangerous_patterns:
+        if pattern in text_lower:
+            logger.warning(f"Reporter: Posible prompt injection detectado: {pattern}")
+            return "[INVALID INPUT DETECTED]"
+
+    return text
+
+
 @dataclass
 class ReporterContext:
     """Contexto para el agente Reporter"""
@@ -204,7 +224,9 @@ def create_agent(job_id: str, portfolio_data: Dict[str, Any], user_data: Dict[st
     tools = [get_market_insights]
 
     # Formatear portafolio para el análisis
-    portfolio_summary = format_portfolio_for_analysis(portfolio_data, user_data)
+    portfolio_summary = sanitize_user_input(
+        format_portfolio_for_analysis(portfolio_data, user_data)
+    )
 
     # Crear tarea
     task = f"""Analiza este portafolio de inversión y redacta un informe completo.

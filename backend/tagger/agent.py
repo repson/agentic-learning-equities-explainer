@@ -23,6 +23,26 @@ load_dotenv(override=True)
 # Configurar logging
 logger = logging.getLogger(__name__)
 
+
+def sanitize_user_input(text: str) -> str:
+    """Remover intentos potenciales de prompt injection."""
+    dangerous_patterns = [
+        "ignore previous instructions",
+        "disregard all prior",
+        "forget everything",
+        "new instructions:",
+        "system:",
+        "assistant:",
+    ]
+
+    text_lower = text.lower()
+    for pattern in dangerous_patterns:
+        if pattern in text_lower:
+            logger.warning(f"Tagger: Posible prompt injection detectado: {pattern}")
+            return "[INVALID INPUT DETECTED]"
+
+    return text
+
 # Obtener configuración
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
 BEDROCK_REGION = os.getenv("BEDROCK_REGION", "us-west-2")
@@ -184,6 +204,7 @@ async def classify_instrument(
         task = CLASSIFICATION_PROMPT.format(
             symbol=symbol, name=name, instrument_type=instrument_type
         )
+        task = sanitize_user_input(task)
 
         # Ejecutar el agente (siguiendo el patrón de gameplan exactamente)
         with trace(f"Clasificar {symbol}"):

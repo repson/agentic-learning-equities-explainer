@@ -14,6 +14,26 @@ from agents.extensions.models.litellm_model import LitellmModel
 
 logger = logging.getLogger()
 
+
+def sanitize_user_input(text: str) -> str:
+    """Remover intentos potenciales de prompt injection."""
+    dangerous_patterns = [
+        "ignore previous instructions",
+        "disregard all prior",
+        "forget everything",
+        "new instructions:",
+        "system:",
+        "assistant:",
+    ]
+
+    text_lower = text.lower()
+    for pattern in dangerous_patterns:
+        if pattern in text_lower:
+            logger.warning(f"Retirement: Posible prompt injection detectado: {pattern}")
+            return "[INVALID INPUT DETECTED]"
+
+    return text
+
 # Contexto eliminado - ya no es necesario sin herramientas
 
 
@@ -320,5 +340,7 @@ Tu tarea: Analiza estos datos de preparación para el retiro y proporciona un an
 
 Proporciona tu análisis en formato markdown claro con números específicos y recomendaciones accionables.
 """
+
+    task = sanitize_user_input(task)
 
     return model, tools, task

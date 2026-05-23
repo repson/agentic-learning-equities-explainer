@@ -23,7 +23,7 @@ except ImportError:
 from src import Database
 
 from templates import CHARTER_INSTRUCTIONS
-from agent import create_agent
+from agent import create_agent, validate_chart_data
 from observability import observe
 
 logger = logging.getLogger()
@@ -96,7 +96,10 @@ async def run_charter_agent(job_id: str, portfolio_data: Dict[str, Any], db=None
                 logger.info(f"Charter: Subcadena JSON extraída, longitud: {len(json_str)}")
                 
                 try:
-                    parsed_data = json.loads(json_str)
+                    is_valid, error_msg, parsed_data = validate_chart_data(json_str)
+                    if not is_valid:
+                        logger.error(f"Charter: salida inválida del agente para {job_id}: {error_msg}")
+                        parsed_data = {"charts": []}
                     charts = parsed_data.get('charts', [])
                     logger.info(f"Charter: JSON parseado exitosamente, se encontraron {len(charts)} gráficos")
                     

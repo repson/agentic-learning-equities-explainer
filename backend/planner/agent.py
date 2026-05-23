@@ -15,6 +15,26 @@ from agents.extensions.models.litellm_model import LitellmModel
 
 logger = logging.getLogger()
 
+
+def sanitize_user_input(text: str) -> str:
+    """Remover intentos potenciales de prompt injection."""
+    dangerous_patterns = [
+        "ignore previous instructions",
+        "disregard all prior",
+        "forget everything",
+        "new instructions:",
+        "system:",
+        "assistant:",
+    ]
+
+    text_lower = text.lower()
+    for pattern in dangerous_patterns:
+        if pattern in text_lower:
+            logger.warning(f"Planner: Posible prompt injection detectado: {pattern}")
+            return "[INVALID INPUT DETECTED]"
+
+    return text
+
 # Inicializar cliente de Lambda
 lambda_client = boto3.client("lambda")
 
@@ -281,5 +301,7 @@ def create_agent(job_id: str, portfolio_summary: Dict[str, Any], db):
 Retiro: {portfolio_summary['years_until_retirement']} años.
 
 Llama a los agentes apropiados."""
+
+    task = sanitize_user_input(task)
 
     return model, tools, task, context

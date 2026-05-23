@@ -3,6 +3,7 @@ Agente Chart Maker - crea datos de visualización para el análisis de portafoli
 """
 
 import os
+import json
 import logging
 from typing import Dict, Any
 
@@ -11,6 +12,67 @@ from agents.extensions.models.litellm_model import LitellmModel
 from templates import CHARTER_INSTRUCTIONS, create_charter_task
 
 logger = logging.getLogger()
+
+
+def sanitize_user_input(text: str) -> str:
+    """Remover intentos potenciales de prompt injection."""
+    dangerous_patterns = [
+        "ignore previous instructions",
+        "disregard all prior",
+        "forget everything",
+        "new instructions:",
+        "system:",
+        "assistant:",
+    ]
+
+    text_lower = text.lower()
+    for pattern in dangerous_patterns:
+        if pattern in text_lower:
+            logger.warning(f"Charter: Posible prompt injection detectado: {pattern}")
+            return "[INVALID INPUT DETECTED]"
+
+    return text
+
+
+def validate_chart_data(chart_json: str) -> tuple[bool, str, Dict[Any, Any]]:
+    """Validar que la salida del agente de graficos tenga la estructura esperada."""
+    try:
+        data = json.loads(chart_json)
+
+        required_keys = ["charts"]
+        if not all(key in data for key in required_keys):
+            return False, f"Faltan claves requeridas. Esperadas: {required_keys}", {}
+
+        if not isinstance(data["charts"], list):
+            return False, "charts debe ser un arreglo", {}
+
+        for i, chart in enumerate(data["charts"]):
+            if "type" not in chart:
+                return False, f"El grafico {i} no contiene el campo 'type'", {}
+
+            if "data" not in chart:
+                return False, f"El grafico {i} no contiene el campo 'data'", {}
+
+            if not isinstance(chart["data"], list):
+                return False, f"El campo data del grafico {i} debe ser un arreglo", {}
+
+            if chart["type"] == "pie":
+                for point in chart["data"]:
+                    if "name" not in point or "value" not in point:
+                        return False, "Los datos de un pie requieren 'name' y 'value'", {}
+            elif chart["type"] == "bar":
+                for point in chart["data"]:
+                    if "category" not in point:
+                        return False, "Los datos de un bar requieren 'category'", {}
+
+        return True, "", data
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Charter: JSON invalido del agente: {e}")
+        return False, f"JSON invalido: {e}", {}
+    except Exception as e:
+        logger.error(f"Charter: error inesperado validando datos: {e}")
+        return False, f"Error de validacion: {e}", {}
 
 
 def analyze_portfolio(portfolio_data: Dict[str, Any]) -> str:
@@ -152,7 +214,7 @@ def create_agent(job_id: str, portfolio_data: Dict[str, Any], db=None):
     model = LitellmModel(model=f"bedrock/{model_id}")
     
     # Analizar el portafolio por adelantado
-    portfolio_analysis = analyze_portfolio(portfolio_data)
+    portfolio_analysis = sanitize_user_input(analyze_portfolio(portfolio_data))
     logger.info(f"Charter: Análisis de portafolio generado, longitud: {len(portfolio_analysis)}")
     
     # Crear la tarea usando la plantilla
