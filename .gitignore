@@ -14,3 +14,10 @@
 
 # Build artifacts
 *.zip
+
+# Python cache
+**/__pycache__/
+*.pyc
+
+# Local planner config with account-specific ARNs
+backend/planner/aurora_config.json

@@ -1,0 +1,6 @@
+{
+  "cluster_arn": "arn:aws:rds:eu-west-1:123456789012:cluster:alex-aurora-cluster",
+  "secret_arn": "arn:aws:secretsmanager:eu-west-1:123456789012:secret:alex-aurora-credentials-xxxxx",
+  "database": "alex",
+  "region": "eu-west-1"
+}
