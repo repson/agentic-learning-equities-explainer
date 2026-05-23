@@ -185,7 +185,7 @@ def lambda_handler(event, context):
                 # Intentar cargar desde la base de datos
                 try:
                     job = db.jobs.find_by_id(job_id)
-                    if job in job.get("clerk_user_id"):
+                    if job and job.get("clerk_user_id"):
                         status = f"ID de Trabajo: {job_id} ID de Usuario Clerk: {job['clerk_user_id']}"
                         if observability:
                             observability.create_event(
