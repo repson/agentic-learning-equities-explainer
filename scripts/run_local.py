@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Ejecuta tanto el frontend como el backend localmente para desarrollo.
-Este script inicia el frontend de NextJS y el backend de FastAPI en paralelo.
+Run both frontend and backend locally for development.
+This script starts the NextJS frontend and the FastAPI backend in parallel.
 """
 
-import os
+import you
 import sys
 import subprocess
 import signal
 import time
 from pathlib import Path
 
-# Seguimiento de los subprocesos para limpieza
+# Track threads for cleanup
 processes = []
 
 def cleanup(signum=None, frame=None):
-    """Limpia todos los subprocesos al salir"""
-    print("\n🛑 Apagando servicios...")
+    """Clear all threads on exit"""
+    print("\n🛑 Shutting down services...")
     for proc in processes:
         try:
             proc.terminate()
@@ -25,49 +25,49 @@ def cleanup(signum=None, frame=None):
             proc.kill()
     sys.exit(0)
 
-# Registrar manejadores de limpieza
+# Register cleanup handlers
 signal.signal(signal.SIGINT, cleanup)
 signal.signal(signal.SIGTERM, cleanup)
 
 def check_requirements():
-    """Verifica si las herramientas requeridas están instaladas"""
+    """Check if the required tools are installed"""
     checks = []
 
-    # Verificar Node.js
+    # Check Node.js
     try:
         result = subprocess.run(["node", "--version"], capture_output=True, text=True)
         node_version = result.stdout.strip()
         checks.append(f"✅ Node.js: {node_version}")
     except FileNotFoundError:
-        checks.append("❌ Node.js no encontrado - por favor instala Node.js")
+        checks.append("❌ Node.js not found - please install Node.js")
 
-    # Verificar npm
+    # Check npm
     try:
         result = subprocess.run(["npm", "--version"], capture_output=True, text=True)
         npm_version = result.stdout.strip()
         checks.append(f"✅ npm: {npm_version}")
     except FileNotFoundError:
-        checks.append("❌ npm no encontrado - por favor instala npm")
+        checks.append("❌ npm not found - please install npm")
 
-    # Verificar uv (que gestiona Python por nosotros)
+    # Check uv (which Python manages for us)
     try:
         result = subprocess.run(["uv", "--version"], capture_output=True, text=True)
         uv_version = result.stdout.strip()
         checks.append(f"✅ uv: {uv_version}")
     except FileNotFoundError:
-        checks.append("❌ uv no encontrado - por favor instala uv")
+        checks.append("❌ uv not found - please install uv")
 
-    print("\n📋 Verificación de prerrequisitos:")
+    print("\n📋 Prerequisite check:")
     for check in checks:
-        print(f"  {check}")
+        print(f" {check}")
 
-    # Salir si algún requisito crítico falta
+    # Exit if any critical requirement is missing
     if any("❌" in check for check in checks):
-        print("\n⚠️  Por favor instala las dependencias que faltan e intenta de nuevo.")
+        print("\n⚠️ Please install the missing dependencies and try again.")
         sys.exit(1)
 
 def check_env_files():
-    """Verifica si existen los archivos de entorno"""
+    """Check if the environment files exist"""
     project_root = Path(__file__).parent.parent
 
     root_env = project_root / ".env"
@@ -76,33 +76,33 @@ def check_env_files():
     missing = []
 
     if not root_env.exists():
-        missing.append(".env (archivo base del proyecto)")
+        missing.append(".env (base project file)")
     if not frontend_env.exists():
         missing.append("frontend/.env.local")
 
     if missing:
-        print("\n⚠️  Archivos de entorno faltantes:")
+        print("\n⚠️ Missing environment files:")
         for file in missing:
-            print(f"  - {file}")
-        print("\nPor favor crea estos archivos con la configuración requerida.")
-        print("El archivo .env en la raíz debe tener todas las variables del backend de las Partes 1-7.")
-        print("El archivo frontend/.env.local debe tener las claves de Clerk.")
+            print(f" - {file}")
+        print("\nPlease create these files with the required configuration.")
+        print("The .env file in the root must have all the backend variables from Parts 1-7.")
+        print("The frontend/.env.local file must have the Clerk keys.")
         sys.exit(1)
 
-    print("✅ Archivos de entorno encontrados")
+    print("✅ Environment files found")
 
 def start_backend():
-    """Inicia el backend FastAPI"""
+    "Start the FastAPI backend"
     backend_dir = Path(__file__).parent.parent / "backend" / "api"
 
-    print("\n🚀 Iniciando backend FastAPI...")
+    print("\n🚀 Starting FastAPI backend...")
 
-    # Verificar si las dependencias están instaladas
+    # Check if dependencies are installed
     if not (backend_dir / ".venv").exists() and not (backend_dir / "uv.lock").exists():
-        print("  Instalando dependencias del backend...")
+        print("Installing backend dependencies...")
         subprocess.run(["uv", "sync"], cwd=backend_dir, check=True)
 
-    # Iniciar el backend
+    # Start the backend
     proc = subprocess.Popen(
         ["uv", "run", "main.py"],
         cwd=backend_dir,
@@ -113,101 +113,101 @@ def start_backend():
     )
     processes.append(proc)
 
-    # Esperar a que el backend se inicie
-    print("  Esperando que el backend inicie...")
-    for _ in range(30):  # 30 segundos de espera máxima
+    # Wait for the backend to start
+    print("Waiting for backend to start...")
+    for _ in range(30): # 30 seconds maximum wait
         try:
             import httpx
             response = httpx.get("http://localhost:8000/health")
             if response.status_code == 200:
-                print("  ✅ Backend en ejecución en http://localhost:8000")
-                print("     Documentación API: http://localhost:8000/docs")
+                print(" ✅ Backend running on http://localhost:8000")
+                print("API Documentation: http://localhost:8000/docs")
                 return proc
         except:
             time.sleep(1)
 
-    print("  ❌ El backend no se pudo iniciar")
+    print(" ❌ The backend could not be started")
     cleanup()
 
 def start_frontend():
-    """Inicia el frontend NextJS"""
+    """Start the NextJS frontend"""
     frontend_dir = Path(__file__).parent.parent / "frontend"
 
-    print("\n🚀 Iniciando frontend NextJS...")
+    print("\n🚀 Starting NextJS frontend...")
 
-    # Verificar si las dependencias están instaladas
+    # Check if dependencies are installed
     if not (frontend_dir / "node_modules").exists():
-        print("  Instalando dependencias del frontend...")
+        print("Installing frontend dependencies...")
         subprocess.run(["npm", "install"], cwd=frontend_dir, check=True)
 
-    # Iniciar el frontend
+    # Start the frontend
     proc = subprocess.Popen(
         ["npm", "run", "dev"],
         cwd=frontend_dir,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,  # Combina stderr con stdout
+        stderr=subprocess.STDOUT, # Combine stderr with stdout
         text=True,
         bufsize=1
     )
     processes.append(proc)
 
-    # Esperar a que el frontend se inicie
-    print("  Esperando que el frontend inicie...")
+    # Wait for the frontend to start
+    print("Waiting for frontend to start...")
     import httpx
     import select
 
     started = False
-    for i in range(30):  # 30 segundos de espera máxima
-        # Verifica la salida del proceso de forma no bloqueante
+    for i in range(30): # 30 seconds maximum wait
+        # Check the process exit in a non-blocking manner
         if proc.stdout:
             ready, _, _ = select.select([proc.stdout], [], [], 0)
             if ready:
                 line = proc.stdout.readline()
                 if line:
-                    print(f"    Frontend: {line.strip()}")
-                    # El servidor de dev de NextJS imprime "Ready" cuando está listo
+                    print(f" Frontend: {line.strip()}")
+                    # NextJS dev server prints "Ready" when ready
                     if "ready" in line.lower() or "compiled" in line.lower() or "started server" in line.lower():
                         started = True
 
-        # También intentar conectar
-        if started or i > 5:  # Empieza a comprobar luego de 5 segundos o cuando ve "ready"
+        # Also try to connect
+        if started or i > 5: # Start checking after 5 seconds or when it sees "ready"
             try:
                 response = httpx.get("http://localhost:3000", timeout=1)
-                print("  ✅ Frontend en ejecución en http://localhost:3000")
+                print(" ✅ Frontend running on http://localhost:3000")
                 return proc
             except httpx.ConnectError:
-                pass  # El servidor no está listo aún
+                pass # The server is not ready yet
             except:
-                # Cualquier otra respuesta significa que el servidor está arriba
-                print("  ✅ Frontend en ejecución en http://localhost:3000")
+                # Any other response means the server is up
+                print(" ✅ Frontend running on http://localhost:3000")
                 return proc
 
         time.sleep(1)
 
-    print("  ❌ El frontend no se pudo iniciar")
+    print(" ❌ The frontend could not be started")
     cleanup()
 
 def monitor_processes():
-    """Monitorea los procesos en ejecución y muestra su salida"""
+    """Monitors running processes and displays their output"""
     print("\n" + "="*60)
-    print("🎯 Alex Asesor Financiero - Desarrollo Local")
+    print("🎯 Alex Financial Advisor - Local Development")
     print("="*60)
-    print("\n📍 Servicios:")
-    print("  Frontend: http://localhost:3000")
-    print("  Backend:  http://localhost:8000")
-    print("  Documentación API: http://localhost:8000/docs")
-    print("\n📝 Los logs aparecerán abajo. Pulsa Ctrl+C para detener.\n")
+    print("\n📍Services:")
+    print("Frontend: http://localhost:3000")
+    print("Backend: http://localhost:8000")
+    print("API Documentation: http://localhost:8000/docs")
+    print("\n📝 The logs will appear below. Press Ctrl+C to stop.\n")
     print("="*60 + "\n")
 
-    # Monitorea los procesos
+    # Monitor processes
     while True:
         for proc in processes:
-            # Verifica si el proceso sigue corriendo
+            # Check if the process is still running
             if proc.poll() is not None:
-                print(f"\n⚠️  ¡Un proceso se ha detenido inesperadamente!")
+                print(f"\n⚠️ A process has stopped unexpectedly!")
                 cleanup()
 
-            # Lee cualquier salida disponible
+            # Read any available output
             try:
                 line = proc.stdout.readline()
                 if line:
@@ -218,29 +218,29 @@ def monitor_processes():
         time.sleep(0.1)
 
 def main():
-    """Punto de entrada principal"""
-    print("\n🔧 Alex Asesor Financiero - Configuración de desarrollo local")
+    "Main entry point"
+    print("\n🔧 Alex Financial Advisor - Local Development Configuration")
     print("="*50)
 
-    # Verifica requisitos previos
+    # Check prerequisites
     check_requirements()
     check_env_files()
 
-    # Instala httpx si es necesario
+    # Install httpx if necessary
     try:
         import httpx
-    except ImportError:
-        print("\n📦 Instalando httpx para comprobaciones de salud...")
+    exceptImportError:
+        print("\n📦 Installing httpx for health checks...")
         subprocess.run(["uv", "add", "httpx"], check=True)
 
-    # Iniciar servicios
+    # Start services
     backend_proc = start_backend()
     frontend_proc = start_frontend()
 
-    # Monitorea procesos
+    # Monitor processes
     try:
         monitor_processes()
-    except KeyboardInterrupt:
+    exceptKeyboardInterrupt:
         cleanup()
 
 if __name__ == "__main__":

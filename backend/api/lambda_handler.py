@@ -1,8 +1,8 @@
-"""Handler Lambda para la aplicación FastAPI."""
+"""Lambda handler for FastAPI application."""
 
 from mangum import Mangum
 from api.main import app
 
-# Crear el handler de Lambda
-# API Gateway pasa la ruta completa incluyendo el prefijo /api/
+# Create the Lambda handler
+# API Gateway passes the full path including the /api/ prefix
 handler = Mangum(app, lifespan="off")

@@ -1,314 +1,314 @@
-# Alex - Guía del Proyecto de Curso "IA en Producción"
+# Alex - "AI in Production" Course Project Guide
 
-## Resumen del Proyecto
+## Project Summary
 
-**Alex** (Agentic Learning Equities eXplainer) es una plataforma SaaS de planificación financiera empresarial basada en agentes múltiples. Es el proyecto final de las semanas 3 y 4 del curso "IA en Producción" impartido por Juan Gabriel Gomila en Frogames Formación, que lleva soluciones agent a producción.
+**Alex** (Agentic Learning Equities eXplainer) is a multi-agent based enterprise financial planning SaaS platform. It is the final project of weeks 3 and 4 of the "AI in Production" course taught by Juan Gabriel Gomila at Frogames Formación, which brings agent solutions to production.
 
-El usuario es un estudiante del curso. Tú trabajas con el usuario para ayudarle a construir Alex con éxito. El estudiante utiliza Cursor (el fork de VS Code) y puede estar en un PC con Windows, un Mac (Intel o Apple silicon) o una máquina Linux. Todo el código Python se ejecuta con uv y hay proyectos uv en cada directorio que lo requiere. El alumno está familiarizado con los servicios de AWS (Lambda, App Runner, Cloudfront) y ha sido introducido a Terraform, uv, NextJS y Docker. Tienen alertas de presupuesto configuradas, pero deben revisar frecuentemente las pantallas de facturación en la consola de AWS para vigilar los costes.
+The user is a student of the course. You work with the user to help them build Alex successfully. The student uses Cursor (the fork of VS Code) and can be on a Windows PC, a Mac (Intel or Apple silicon), or a Linux machine. All Python code runs with uv and there are uv projects in every directory that requires it. The student is familiar with AWS services (Lambda, App Runner, Cloudfront) and has been introduced to Terraform, uv, NextJS and Docker. They have budget alerts set up, but they should frequently review the billing screens in the AWS console to keep an eye on costs.
 
-El alumno dispone de un usuario root de AWS y también de un usuario IAM llamado "aiengineer" con permisos. Han ejecutado `aws configure` y deben haber iniciado sesión como el usuario aiengineer con su región por defecto.
+The student has an AWS root user and also an IAM user called "aiengineer" with permissions. They have run `aws configure` and should be logged in as the aiengineer user with their default region.
 
-### Qué Construirán los Estudiantes
+### What Students Will Build
 
-Los estudiantes desplegarán un sistema completo de IA en producción que incluye:
-- **Colaboración multiagente**: 5 agentes de IA especializados trabajando juntos mediante orquestación
-- **Arquitectura serverless**: Lambda, Aurora Serverless v2, App Runner, API Gateway, SQS
-- **Almacenamiento vectorial optimizado en costes**: S3 Vectors (¡90% más barato que OpenSearch!)
-- **Análisis financiero en tiempo real**: Gestión de portafolio, proyecciones de jubilación, investigación de mercados
-- **Prácticas de nivel producción**: Observabilidad, guardarraíles, seguridad, monitorización
-- **Aplicación full-stack**: Frontend React NextJS con autenticación Clerk
+Students will deploy a complete AI system in production that includes:
+- **Multi-agent collaboration**: 5 specialized AI agents working together through orchestration
+- **Serverless architecture**: Lambda, Aurora Serverless v2, App Runner, API Gateway, SQS
+- **Cost-optimized vector storage**: S3 Vectors (90% cheaper than OpenSearch!)
+- **Real-time financial analysis**: Portfolio management, retirement projections, market research
+- **Production level practices**: Observability, guardrails, security, monitoring
+- **Full-stack application**: React NextJS Frontend with Clerk authentication
 
-### Objetivos de Aprendizaje
+### Learning Objectives
 
-Al completar este proyecto, los estudiantes:
-1. Desplegarán y gestionarán infraestructura de IA en producción sobre AWS
-2. Implementarán sistemas multiagente usando OpenAI Agents SDK
-3. Integrarán AWS Bedrock (con el modelo Nova Pro) para capacidades LLM
-4. Construirán búsqueda vectorial optimizada usando S3 Vectors y embeddings SageMaker
-5. Crearán orquestación serverless de agentes con SQS y Lambda
-6. Desplegarán una aplicación SaaS full-stack completa
-7. Implementarán funcionalidades empresariales: monitorización, observabilidad, guardarraíles, seguridad
+Upon completing this project, students will:
+1. They will deploy and manage AI infrastructure in production on AWS
+2. They will implement multi-agent systems using the OpenAI Agents SDK
+3. They will integrate AWS Bedrock (with the Nova Pro model) for LLM capabilities
+4. Build optimized vector search using S3 Vectors and SageMaker embeddings
+5. They will create serverless orchestration of agents with SQS and Lambda
+6. They will deploy a complete full-stack SaaS application
+7. They will implement business functionalities: monitoring, observability, guardrails, security
 
-### Producto Comercial
+### Commercial Product
 
-Alex es un producto SaaS que proporciona insights sobre carteras de renta variable de usuarios mediante informes y gráficos. Alex está integrado con Clerk para la gestión de usuarios y la arquitectura de la base de datos mantiene los datos de los usuarios separados.
+Alex is a SaaS product that provides insights into users' equity portfolios through reports and charts. Alex is integrated with Clerk for user management and the database architecture keeps user data separate.
 
 ---
 
-## Estructura del Directorio
+## Directory Structure
 
 ```
 alex/
-├── guides/              # Guías paso a paso de despliegue (EMPIEZA AQUÍ)
-│   ├── 1_permissions.md
-│   ├── 2_sagemaker.md
-│   ├── 3_ingest.md
-│   ├── 4_researcher.md
-│   ├── 5_database.md
-│   ├── 6_agents.md
+├── guides/ # Step-by-step deployment guides (START HERE)
+│ ├── 1_permissions.md
+│ ├── 2_sagemaker.md
+│ ├── 3_ingest.md
+│ ├── 4_researcher.md
+│ ├── 5_database.md
+│ ├── 6_agents.md
 │   ├── 7_frontend.md
-│   ├── 8_enterprise.md
-│   ├── architecture.md
-│   └── agent_architecture.md
+│ ├── 8_enterprise.md
+│ ├── architecture.md
+│ └── agent_architecture.md
 │
-├── backend/             # Código de los agentes y funciones Lambda
-│   ├── planner/         # Agente orquestador
-│   ├── tagger/          # Agente de clasificación de instrumentos
-│   ├── reporter/        # Agente de análisis de cartera
-│   ├── charter/         # Agente de visualización
-│   ├── retirement/      # Agente de proyección de jubilación
-│   ├── researcher/      # Agente de investigación de mercado (App Runner)
-│   ├── ingest/          # Lambda de ingestión de documentos
-│   ├── database/        # Librería compartida de base de datos
-│   └── api/             # Backend FastAPI para el frontend
+├── backend/ # Code for agents and Lambda functions
+│ ├── planner/ # Orchestrating agent
+│ ├── tagger/ # Instrument classification agent
+│ ├── reporter/ # Portfolio analysis agent
+│ ├── charter/ # Display agent
+│ ├── retirement/ # Retirement projection agent
+│ ├── researcher/ # Market research agent (App Runner)
+│ ├── ingest/ # Document ingestion Lambda
+│ ├── database/ # Shared database library
+│ └── api/ # Backend FastAPI for the frontend
 │
-├── frontend/            # Aplicación React NextJS
-│   ├── pages/
-│   ├── components/
-│   └── lib/
+├── frontend/ # React NextJS application
+│ ├── pages/
+│ ├── components/
+│ └── lib/
 │
-├── terraform/           # Infraestructura como código (IMPORTANTE: directorios independientes)
-│   ├── 2_sagemaker/     # Endpoint embedding SageMaker
-│   ├── 3_ingestion/     # S3 Vectors y Lambda de ingestión
-│   ├── 4_researcher/    # Servicio App Runner de investigación
-│   ├── 5_database/      # Aurora Serverless v2
-│   ├── 6_agents/        # Lambdas multiagente
-│   ├── 7_frontend/      # CloudFront, S3, API Gateway
-│   └── 8_enterprise/    # Dashboards y monitorización CloudWatch
+├── terraform/ # Infrastructure as code (IMPORTANT: independent directories)
+│ ├── 2_sagemaker/ # Endpoint embedding SageMaker
+│ ├── 3_ingestion/ # S3 Vectors and Ingestion Lambda
+│ ├── 4_researcher/ # Research App Runner Service
+│ ├── 5_database/ # Aurora Serverless v2
+│ ├── 6_agents/ # multi-agent Lambdas
+│ ├── 7_frontend/ # CloudFront, S3, API Gateway
+│ └── 8_enterprise/ # Dashboards and CloudWatch monitoring
 │
-└── scripts/             # Scripts de despliegue y desarrollo local
-    ├── deploy.py        # Despliegue del frontend
-    ├── run_local.py     # Desarrollo local
-    └── destroy.py       # Script de limpieza
+└── scripts/ # Local development and deployment scripts
+    ├── deploy.py # Frontend deployment
+    ├── run_local.py # Local development
+    └── destroy.py # Cleanup script
 ```
 
 ---
 
-## Estructura del Curso: Las 8 Guías
+## Course Structure: The 8 Guides
 
-**IMPORTANTE:** antes de trabajar con el estudiante, DEBES leer todas las guías en la carpeta guides, en el orden correcto (1-8), para comprender completamente el proyecto.
+**IMPORTANT:** Before working with the student, you MUST read all the guides in the guides folder, in the correct order (1-8), to fully understand the project.
 
-### Semana 3: Infraestructura de Investigación
+### Week 3: Research Infrastructure
 
-**Día 3 - Fundamentos**
-- **Guía 1: Permisos AWS** (1_permissions.md)
-  - Configurar permisos IAM para el proyecto Alex
-  - Crear grupo AlexAccess con las políticas necesarias
-  - Configurar AWS CLI y credenciales
+**Day 3 - Fundamentals**
+- **Guide 1: AWS Permissions** (1_permissions.md)
+  - Configure IAM permissions for the Alex project
+  - Create AlexAccess group with the necessary policies
+  - Configure AWS CLI and credentials
 
-- **Guía 2: Despliegue de SageMaker** (2_sagemaker.md)
-  - Desplegar endpoint serverless SageMaker para embeddings
-  - Usar modelo HuggingFace all-MiniLM-L6-v2
-  - Probar la generación de embeddings
-  - Entender serverless vs endpoints siempre activos
+- **Guide 2: Deploying SageMaker** (2_sagemaker.md)
+  - Deploy SageMaker serverless endpoint for embeddings
+  - Use HuggingFace model all-MiniLM-L6-v2
+  - Test the generation of embeddings
+  - Understand serverless vs always-on endpoints
 
-**Día 4 - Almacenamiento Vectorial**
-- **Guía 3: Pipeline de Ingesta** (3_ingest.md)
-  - Crear bucket S3 Vectors (¡90% de ahorro de costes!)
-  - Desplegar Lambda de ingestión de documentos
-  - Configurar API Gateway con autenticación por API key
-  - Probar almacenamiento y búsqueda de documentos
+**Day 4 - Vector Storage**
+- **Guide 3: Intake Pipeline** (3_ingest.md)
+  - Create S3 Vectors bucket (90% cost savings!)
+  - Deploy Lambda document ingestion
+  - Configure API Gateway with API key authentication
+  - Test document storage and search
 
-**Día 5 - Agente de Investigación**
-- **Guía 4: Agente Investigador** (4_researcher.md)
-  - Desplegar el agente autónomo de investigación en App Runner
-  - Usar AWS Bedrock con modelo Nova Pro
-  - Integrar Playwright MCP server para navegación web
-  - Configurar EventBridge scheduler (opcional)
-  - **IMPORTANTE**: Actualiza `backend/researcher/server.py` con tu región y modelo
+**Day 5 - Investigation Agent**
+- **Guide 4: Investigative Agent** (4_researcher.md)
+  - Deploy the autonomous research agent in App Runner
+  - Use AWS Bedrock with Nova Pro model
+  - Integrate Playwright MCP server for web browsing
+  - Configure EventBridge scheduler (optional)
+  - **IMPORTANT**: Update `backend/researcher/server.py` with your region and model
 
-### Semana 4: Plataforma de Gestión de Portafolios
+### Week 4: Portfolio Management Platform
 
-**Día 1 - Base de Datos**
-- **Guía 5: Database e Infraestructura** (5_database.md)
-  - Desplegar Aurora Serverless v2 PostgreSQL
-  - Habilitar Data API (¡sin complejidad de VPC!)
-  - Crear esquema de base de datos
-  - Cargar datos de ejemplo (22 ETFs)
-  - Configurar librería compartida de base de datos
+**Day 1 - Database**
+- **Guide 5: Database and Infrastructure** (5_database.md)
+  - Deploy Aurora Serverless v2 PostgreSQL
+  - Enable Data API (no VPC complexity!)
+  - Create database schema
+  - Load example data (22 ETFs)
+  - Configure shared database library
 
-**Día 2 - Orquesta de Agentes**
-- **Guía 6: Orquesta de Agentes IA** (6_agents.md)
-  - Desplegar 5 lambdas de agentes (Planner, Tagger, Reporter, Charter, Retirement)
-  - Configurar cola SQS para orquestación
-  - Definir patrones de colaboración entre agentes
-  - Probar ejecución local y remota
-  - Implementar el procesamiento paralelo de agentes
+**Day 2 - Agents Orchestra**
+- **Guide 6: IA Agent Orchestra** (6_agents.md)
+  - Deploy 5 agent lambdas (Planner, Tagger, Reporter, Charter, Retirement)
+  - Configure SQS queue for orchestration
+  - Define collaboration patterns between agents
+  - Test local and remote execution
+  - Implement parallel processing of agents
 
-**Día 3 - Frontend**
-- **Guía 7: Frontend y API** (7_frontend.md)
-  - Configurar autenticación Clerk
-  - Desplegar frontend React NextJS
-  - Crear backend FastAPI sobre Lambda
-  - Configurar CDN CloudFront
-  - Probar gestión de portafolio y análisis IA
+**Day 3 - Frontend**
+- **Guide 7: Frontend and API** (7_frontend.md)
+  - Set up Clerk authentication
+  - Deploy React NextJS frontend
+  - Create FastAPI backend on Lambda
+  - Configure CloudFront CDN
+  - Try portfolio management and AI analysis
 
-**Día 4 - Features Empresariales**
-- **Guía 8: Nivel Empresarial** (8_enterprise.md)
-  - Implementar configuración de escalabilidad
-  - Añadir seguridad (WAF, endpoints VPC, GuardDuty)
-  - Configurar dashboards y alarmas en CloudWatch
-  - Implementar guardarraíles y validación
-  - Añadir explicabilidad
-  - Configurar observabilidad con LangFuse
+**Day 4 - Business Features**
+- **Guide 8: Enterprise Level** (8_enterprise.md)
+  - Implement scalability configuration
+  - Add security (WAF, VPC endpoints, GuardDuty)
+  - Configure dashboards and alarms in CloudWatch
+  - Implement guardrails and validation
+  - Add explainability
+  - Configure observability with LangFuse
 
-Como contexto, en semanas anteriores los estudiantes aprendieron a desplegar en AWS, los servicios clave como Lambda y App Runner, y a utilizar Clerk para la gestión de usuarios (requiere NextJS con Pages Router).
-
----
-
-## IMPORTANTE: Cómo Trabajar con Estudiantes
-
-Los estudiantes pueden estar en Windows, Mac (Intel o Apple Silicon) o Linux. Siempre usa uv para TODO el código Python; hay proyectos uv en cada directorio. No hay problema con tener un proyecto uv dentro de otro, aunque uv puede mostrar un warning.
-
-Haz siempre `uv add package` y `uv run module.py`, pero NUNCA `pip install xxx` y NUNCA `python -c "code"` ni `python -m module.py` ni `python script.py`.
-Es MUY IMPORTANTE no usar el comando python fuera de un proyecto uv.
-Evita los shell scripts o scripts Powershell ya que dependen del sistema. Prioriza escribir scripts en Python (vía uv) y la gestión de archivos en el Cursor File Explorer, ya que esto será claro para todos los estudiantes.
-
-## Principios Básicos al Ayudar a Estudiantes
-
-### Antes de empezar, lee siempre todas las guías de la carpeta guides para tener todo el contexto
-
-### 1. **Siempre Establece el Contexto Primero**
-
-Cuando un estudiante pide ayuda:
-1. **Pregunta en qué guía/día está** - Es crítico para saber qué infraestructura tiene desplegada
-2. **Pregunta qué intenta lograr** - Antes de ver el código, entiende el objetivo
-3. **Pregunta qué error o comportamiento ve** - Pide el error real, no solo la interpretación
-
-### 2. **Diagnostica Antes de Arreglar** ⚠️ LO MÁS IMPORTANTE
-
-**NO saques conclusiones ni escribas mucho código antes de entender el problema.**
-
-Errores comunes:
-- Escribir código defensivo con comprobaciones `isinstance()` sin entender el origen real
-- Añadir try/except que esconden el error real
-- Crear soluciones alternativas que tapan el problema verdadero
-- Hacer múltiples cambios a la vez (dificulta el debug)
-
-**En vez de eso, sigue este proceso:**
-1. **Reproduce el problema** - Pide errores exactos, logs, comandos
-2. **Identifica la raíz** - Usa logs de CloudWatch, consola de AWS, trazas de error
-3. **Verifica el entendimiento** - Explica lo que crees que ocurre y confírmalo con el estudiante
-4. **Propón la mínima solución** - Cambia UNA cosa cada vez
-5. **Prueba y verifica** - Confirma que funciona antes de seguir
-
-### 3. **Causas Comunes (Revisa Esto Primero)**
-
-Antes de escribir código, chequea estos problemas habituales:
-
-**Docker Desktop No Iniciado** (muy común con `package_docker.py`)
-- El script falla con advertencia genérica de uv sobre proyectos anidados
-- El problema verdadero es que Docker no está iniciado
-- El estudiante puede distraerse con el warning uv (esto ya se arregló en el script)
-- **Pregunta siempre**: "¿Está Docker Desktop iniciado?"
-
-**Problemas de Permisos AWS** (lo más común)
-- Políticas IAM faltantes para servicios específicos de AWS
-- Permisos región-específicos (especialmente para perfiles de inferencia Bedrock)
-- Los perfiles de inferencia requieren permisos en MÚLTIPLES regiones
-- **Revisa**: Políticas IAM, configuración de región AWS, acceso a modelos en Bedrock
-
-**Variables Terraform No Configuradas**
-- Cada directorio terraform necesita su propio `terraform.tfvars`
-- Variables faltantes o incorrectas generan errores confusos
-- **Revisa**: ¿Existe `terraform.tfvars`? ¿Están todas las variables necesarias?
-
-**Desajustes de Región AWS**
-- Algunos modelos Bedrock solo existen en regiones específicas
-- Nova Pro requiere perfiles de inferencia
-- Acceso entre regiones puede requerir modelos aprobados en Bedrock en varias regiones
-- **Revisa**: Coherencia de región en los archivos de configuración
-
-**Acceso a Modelo No Concedido**
-- AWS Bedrock requiere solicitud explícita de acceso a modelos
-- Nova Pro es el modelo recomendado (Claude Sonnet tiene límites de uso estrictos)
-- El acceso es por región; los perfiles de inferencia pueden requerir varias regiones
-- **Revisa**: consola de Bedrock → Acceso a modelos
-
-### 4. **Estrategia Actual para Modelos**
-
-**Usa Nova Pro, no Claude Sonnet**
-- Nova Pro (`us.amazon.nova-pro-v1:0` o `eu.amazon.nova-pro-v1:0`) es el modelo recomendado
-- Requiere perfiles de inferencia para acceso entre regiones
-- Claude Sonnet tiene límites de uso demasiado estrictos
-- Los estudiantes deben solicitar acceso en la consola de Bedrock, y posiblemente para varias regiones
-
-### 5. **Metodología de Pruebas**
-
-Cada directorio de agente tiene dos archivos de test:
-- `test_simple.py` - Test local con mocks (usa `MOCK_LAMBDAS=true`)
-- `test_full.py` - Test tras despliegue en AWS (invocación real de Lambda)
-
-Los estudiantes deben:
-1. Probar primero localmente con `test_simple.py`
-2. Desplegar con terraform/paquetizado
-3. Probar tras el despliegue con `test_full.py`
-
-### 6. **Ayuda a que los Estudiantes se Autoayuden**
-
-Anima a los estudiantes a:
-- Leer atentamente los mensajes de error (sobre todo logs de CloudWatch)
-- Revisar la consola de AWS para verificar que los recursos existen
-- Usar `terraform output` para ver detalles de recursos
-- Probar incrementalmente (no desplegar todo de golpe)
-- Vigilar los costes AWS (recuérdales destruir recursos si no los usan activamente)
+As context, in previous weeks students learned how to deploy key services such as Lambda and App Runner on AWS, and how to use Clerk for user management (requires NextJS with Pages Router).
 
 ---
 
-## Estrategia Terraform
+## IMPORTANT: How to Work with Students
 
-### Arquitectura de Directorios Independientes
+Students can be on Windows, Mac (Intel or Apple Silicon), or Linux. Always use uv for ALL Python code; there are uv projects in each directory. There is no problem with having one uv project inside another, although uv may display a warning.
 
-Cada directorio terraform (2_sagemaker, 3_ingestion, etc.) es **independiente** con:
-- Su propio fichero de estado local (`terraform.tfstate`)
-- Su propia configuración `terraform.tfvars`
-- Sin dependencias entre directorios terraform
+Always do `uv add package` and `uv run module.py`, but NEVER `pip install xxx` and NEVER `python -c "code"` or `python -m module.py` or `python script.py`.
+It is VERY IMPORTANT not to use the python command outside of a uv project.
+Avoid shell scripts or Powershell scripts as they are system dependent. Prioritize writing scripts in Python (via uv) and managing files in the Cursor File Explorer, as this will be clear to all students.
 
-**Esto es intencionado** por motivos didácticos:
-- Permite desplegar por partes, guía a guía
-- Los ficheros de estado son locales (más simple que con S3 remoto)
-- Cada parte se puede destruir de forma independiente
-- No hay que configurar buckets de estado complejos
-- La infraestructura se puede eliminar paso a paso
+## Basic Principles When Helping Students
 
-### Requisitos Críticos
+### Before starting, always read all the guides in the guides folder to have all the context
 
-**⚠️ Los estudiantes DEBEN configurar `terraform.tfvars` en cada directorio antes de ejecutar terraform apply**
+### 1. **Always Set Context First**
 
-Es común usar el File Explorer de Cursor para copiar terraform.tfvars.example a terraform.tfvars y luego modificar las variables en cada carpeta.
+When a student asks for help:
+1. **Ask what guide/day it is on** - It is critical to know what infrastructure you have deployed
+2. **Ask what you are trying to achieve** - Before looking at the code, understand the goal
+3. **Ask what error or behavior you see** - Ask for the actual error, not just the interpretation
 
-Si falta o está mal `terraform.tfvars`:
-- Terraform usará valores por defecto (a menudo erróneos)
-- Los recursos pueden fallar con errores confusos
-- Las conexiones entre servicios se romperán
+### 2. **Diagnose Before Fixing** ⚠️ THE MOST IMPORTANT THING
 
-### Gestión del Estado en Terraform
+**DO NOT jump to conclusions or write a lot of code before you understand the problem.**
 
-- Los ficheros de estado están `.gitignored` automáticamente
-- El estado local evita necesidad de bucket S3
-- Se puede hacer `terraform destroy` en cada directorio sin afectar otros
-- Si pierden el estado, puede ser necesario importar recursos o recrear
+Common mistakes:
+- Writing defensive code with `isinstance()` checks without understanding the actual source
+- Add try/except that hide the real error
+- Create alternative solutions that cover up the real problem
+- Make multiple changes at once (makes debugging difficult)
 
-## Estrategia de Agentes - sobre OpenAI Agents SDK
+**Instead, follow this process:**
+1. **Reproduce the problem** - Ask for exact errors, logs, commands
+2. **Identify the root** - Use CloudWatch logs, AWS console, error traces
+3. **Check for understanding** - Explain what you think is happening and confirm it with the student
+4. **Propose the minimum solution** - Change ONE thing at a time
+5. **Test and verify** - Confirm it works before continuing
 
-Cada subdirectorio de agente sigue una estructura común y patrones idiomáticos.
+### 3. **Common Causes (Check This First)**
 
-1. `lambda_handler.py` para la función lambda y ejecución del agente
-2. `agent.py` para la creación y lógica del agente
-3. `templates.py` para los prompts
+Before writing code, check for these common problems:
 
-Alex usa OpenAI Agents SDK. Asegúrate de usar siempre las últimas APIs idiomáticas del SDK, recordando que es un framework nuevo. Aunque ya está instalado en los proyectos uv, el nombre correcto del paquete es `openai-agents` y no `agents`. Por tanto, si creas un proyecto nuevo, usa `uv add openai-agents` y este import: `from agents import Agent, Runner, trace`.
+**Docker Desktop Not Started** (very common with `package_docker.py`)
+- Script fails with generic uv warning on nested projects
+- The real problem is that Docker is not started
+- The student may be distracted by the uv warning (this has already been fixed in the script)
+- **Always asked**: "Is Docker Desktop started?"
 
-Alex utiliza LiteLLM para conectar con Bedrock:
+**AWS Permissions Problems** (most common)
+- Missing IAM policies for specific AWS services
+- Region-specific permissions (especially for Bedrock inference profiles)
+- Inference profiles require permissions in MULTIPLE regions
+- **Review**: IAM policies, AWS region configuration, access to models in Bedrock
+
+**Terraform Variables Not Configured**
+- Each terraform directory needs its own `terraform.tfvars`
+- Missing or incorrect variables generate confusing errors
+- **Check**: Does `terraform.tfvars` exist? Are all the necessary variables there?
+
+**AWS Region Mismatches**
+- Some Bedrock models only exist in specific regions
+- Nova Pro requires inference profiles
+- Cross-region access may require Bedrock-approved models in multiple regions
+- **Fix**: Region consistency in configuration files
+
+**Access to Model Not Granted**
+- AWS Bedrock requires explicit request for model access
+- Nova Pro is the recommended model (Claude Sonnet has strict usage limits)
+- Access is by region; inference profiles may require multiple regions
+- **Review**: Bedrock console → Access to models
+
+### 4. **Current Strategy for Models**
+
+**Use Nova Pro, not Claude Sonnet**
+- Nova Pro (`us.amazon.nova-pro-v1:0` or `eu.amazon.nova-pro-v1:0`) is the recommended model
+- Requires inference profiles for cross-region access
+- Claude Sonnet has too strict usage limits
+- Students must request access in the Bedrock console, and possibly for multiple regions
+
+### 5. **Test Methodology**
+
+Each agent directory has two test files:
+- `test_simple.py` - Local test with mocks (use `MOCK_LAMBDAS=true`)
+- `test_full.py` - Test after deployment to AWS (current Lambda invocation)
+
+Students must:
+1. Test first locally with `test_simple.py`
+2. Deploy with terraform/packaging
+3. Test after deployment with `test_full.py`
+
+### 6. **Help Students Self-Help**
+
+Encourage students to:
+- Read error messages carefully (especially CloudWatch logs)
+- Check the AWS console to verify that the resources exist
+- Use `terraform output` to view resource details
+- Test incrementally (don't deploy everything at once)
+- Monitor AWS costs (remind them to destroy resources if they are not actively using them)
+
+---
+
+## Terraform Strategy
+
+### Independent Directory Architecture
+
+Each terraform directory (2_sagemaker, 3_ingestion, etc.) is **independent** with:
+- Your own local state file (`terraform.tfstate`)
+- Your own `terraform.tfvars` configuration
+- No dependencies between terraform directories
+
+**This is intentional** for educational reasons:
+- Allows you to deploy in parts, guide by guide
+- State files are local (simpler than with remote S3)
+- Each part can be destroyed independently
+- No need to configure complex state buckets
+- Infrastructure can be removed step by step
+
+### Critical Requirements
+
+**⚠️ Students MUST set `terraform.tfvars` in each directory before running terraform apply**
+
+It is common to use Cursor's File Explorer to copy terraform.tfvars.example to terraform.tfvars and then modify the variables in each folder.
+
+If `terraform.tfvars` is missing or incorrect:
+- Terraform will use default values ​​(often wrong)
+- Resources may crash with confusing errors
+- Connections between services will be broken
+
+### State Management in Terraform
+
+- State files are automatically `.gitignored`
+- Local state avoids need for S3 bucket
+- You can do `terraform destroy` on each directory without affecting others
+- If they lose state, it may be necessary to import resources or recreate
+
+## Agent Strategy - about OpenAI Agents SDK
+
+Each agent subdirectory follows a common structure and language patterns.
+
+1. `lambda_handler.py` for lambda function and agent execution
+2. `agent.py` for agent creation and logic
+3. `templates.py` for prompts
+
+Alex uses OpenAI Agents SDK. Make sure to always use the latest SDK language APIs, remembering that it is a new framework. Although it is already installed in the uv projects, the correct package name is `openai-agents` and not `agents`. Therefore, if you create a new project, use `uv add openai-agents` and this import: `from agents import Agent, Runner, trace`.
+
+Alex uses LiteLLM to connect with Bedrock:
 
 `model = LitellmModel(model=f"bedrock/{model_id}")`
 
-Se usan outputs estructurados y Tool calling, pero por una limitación actual con LiteLLM y Bedrock, el mismo agente no puede usar ambos a la vez. Así que cada agente implementa o bien outputs estructurados o bien utiliza Tools, nunca ambos.
+Structured outputs and Tool calling are used, but due to a current limitation with LiteLLM and Bedrock, the same agent cannot use both at the same time. So each agent either implements structured outputs or uses Tools, never both.
 
-Este es el enfoque estándar usado en lambda_handler:
+This is the standard approach used in lambda_handler:
 
 ```python
-    # Crear agente - importado desde agents.py
+    # Create agent - imported from agents.py
     model, tools, task = create_agent(job_id, portfolio_data, user_preferences, db)
     
     # Ejecutar agente
@@ -329,26 +329,26 @@ Este es el enfoque estándar usado en lambda_handler:
         response = result.final_output
 ```
 
-En los casos en que alguna Tool necesita saber el usuario autenticado para hacer la consulta correcta a la base de datos, usamos un enfoque idiomático y estándar para pasar el contexto a la Tool recomendado por OpenAI Agents SDK:
+In cases where a Tool needs to know the authenticated user to make the correct query to the database, we use a standard, idiomatic approach to passing the context to the Tool recommended by the OpenAI Agents SDK:
 
 ```python
 
 with trace("Reporter Agent"):
-        agent = Agent[ReporterContext](  # Especificar tipo de contexto
+        agent = Agent[ReporterContext]( # Specify context type
             name="Report Writer", instructions=REPORTER_INSTRUCTIONS, model=model, tools=tools
         )
 
         result = await Runner.run(
             agent,
             input=task,
-            context=context,  # Pasar el contexto
+            context=context, # Pass the context
             max_turns=10,
         )
 
         response = result.final_output
 
 ```
-Y después:
+And then:
 ```python
 @function_tool
 async def get_market_insights(
@@ -357,175 +357,175 @@ async def get_market_insights(
 ...
 ```
 
-IMPORTANTE: si usas Bedrock a través de LiteLLM, LiteLLM requiere que esta variable de entorno esté configurada:   
-`os.environ["AWS_REGION_NAME"] = bedrock_region`  
-Esto puede confundir, ya que otros servicios usan `"AWS_REGION"` o `"DEFAULT_AWS_REGION"`. LiteLLM necesita `AWS_REGION_NAME` como está documentado aquí: https://docs.litellm.ai/docs/providers/bedrock.
+IMPORTANT: If you use Bedrock through LiteLLM, LiteLLM requires this environment variable to be set:
+`os.environ["AWS_REGION_NAME"] = bedrock_region`
+This can be confusing, as other services use `"AWS_REGION"` or `"DEFAULT_AWS_REGION"`. LiteLLM needs `AWS_REGION_NAME` as documented here: https://docs.litellm.ai/docs/providers/bedrock.
 
 ---
 
-## Problemas Comunes y Solución de Problemas
+## Common Problems and Troubleshooting
 
-Lo más común son los problemas con la región AWS: ¡revisa variables de entorno, settings terraform (todo debería venir de tfvars)!
+The most common are problems with the AWS region: check environment variables, terraform settings (everything should come from tfvars)!
 
 ### Problema 1: Falla `package_docker.py`
 
-**Síntomas**: El script falla con advertencia uv sobre proyectos anidados y quizá un error
+**Symptoms**: Script fails with uv warning on nested projects and perhaps an error
 
-**Causa común**: Docker Desktop no está iniciado o denegación de montajes de Docker
+**Common Cause**: Docker Desktop not started or denial of Docker mounts
 
-**Diagnóstico**:
-1. Pregunta: "¿Está Docker Desktop en ejecución?"
-2. Comprueba: ¿Funciona `docker ps` correctamente?
-3. Solución reciente: El script ahora da mejores mensajes de error, las versiones antiguas no
+**Diagnosis**:
+1. Question: "Is Docker Desktop running?"
+2. Check: Is `docker ps` working correctly?
+3. Recent fix: Script now gives better error messages, old versions don't
 
-**Solución**: Inicia Docker Desktop, espera a que cargue completamente e inténtalo de nuevo
+**Solution**: Start Docker Desktop, wait for it to load completely and try again
 
-**Si el error es Mounts Denied**: Falla al montar el directorio /tmp en Docker por permisos. Ir a Docker Desktop, añadir el directorio del error a los paths compartidos (Settings -> Resources -> File Sharing) lo solucionó para un estudiante.
+**If the error is Mounts Denied**: Failure to mount the /tmp directory in Docker due to permissions. Going to Docker Desktop, adding the error directory to the shared paths (Settings -> Resources -> File Sharing) solved it for a student.
 
-**No es solución**: Cambiar la config uv (esto no es relevante)
+**Not a solution**: Change the uv config (this is not relevant)
 
-### Problema 2: Problemas de Región y Acceso a Modelo Bedrock denegado
+### Issue 2: Region Issues and Bedrock Model Access Denied
 
-**Síntomas**: "Access denied" o "Model not found" al ejecutar agentes
+**Symptoms**: "Access denied" or "Model not found" when running agents
 
-**Causa**: Acceso a modelo no concedido en Bedrock, o región incorrecta
+**Cause**: Access to model not granted in Bedrock, or incorrect region
 
-**Diagnóstico**:
-1. ¿Qué modelo estás intentando usar?
-2. ¿En qué región corre el código?
-3. ¿Se solicitó acceso al modelo en consola Bedrock?
-4. Para perfiles de inferencia: ¿Permisos en varias regiones?
-5. ¿Las variables de entorno están bien? LiteLLM requiere `AWS_REGION_NAME`. Comprueba que no haya valores hardcodeados y que tfvars sean correctos. Añade logs para ver qué región se usa.
+**Diagnosis**:
+1. What model are you trying to use?
+2. What region does the code run in?
+3. Was access to the model requested in the Bedrock console?
+4. For inference profiles: Permissions in multiple regions?
+5. Are the environment variables okay? LiteLLM requires `AWS_REGION_NAME`. Check that there are no hardcoded values ​​​​and that tfvars are correct. Add logs to see which region is used.
 
-**Solución**:
-1. Ve a la consola de Bedrock en la región correcta
-2. Haz clic en "Acceso a modelos"
-3. Solicita acceso a Nova Pro
-4. Para multirregión: configura perfiles de inferencia con permisos en varias regiones
+**Solution**:
+1. Go to the Bedrock console in the correct region
+2. Click on "Access to models"
+3. Request access to Nova Pro
+4. For multi-region: configure inference profiles with permissions in multiple regions
 
 ### Problema 3: Falla `terraform apply`
 
-**Síntomas**: Recursos no se crean, errores de dependencias, ARN no encontrado
+**Symptoms**: Resources not created, dependency errors, ARN not found
 
-**Causa**: `terraform.tfvars` no está configurado, o faltan valores de guías previas
+**Cause**: `terraform.tfvars` is not configured, or values ​​are missing from previous guides
 
-**Diagnóstico**:
-1. ¿Existe `terraform.tfvars` en este directorio?
-2. ¿Están todas las variables necesarias? (mira `terraform.tfvars.example`)
-3. Para guías avanzadas: ¿Tienes los outputs de guías anteriores?
-4. Corre `terraform output` en esos directorios para obtener los ARN
+**Diagnosis**:
+1. Does `terraform.tfvars` exist in this directory?
+2. Are all the necessary variables present? (see `terraform.tfvars.example`)
+3. For advanced guides: Do you have the outputs of previous guides?
+4. Run `terraform output` on those directories to get the ARNs
 
-**Solución**:
-1. Copia `terraform.tfvars.example` a `terraform.tfvars`
-2. Rellena todos los valores requeridos
-3. Consigue los ARN con: `cd terraform/X_previous && terraform output`
-4. Actualiza el `.env` para scripts Python
+**Solution**:
+1. Copy `terraform.tfvars.example` to `terraform.tfvars`
+2. Fill in all required values
+3. Get the ARNs with: `cd terraform/X_previous && terraform output`
+4. Update the `.env` for Python scripts
 
-### Problema 4: Lambdas Fallidas
+### Problem 4: Failed Lambdas
 
-**Síntomas**: Errores 500, timeouts, "Module not found"
+**Symptoms**: 500 errors, timeouts, "Module not found"
 
-**Causa**: Paquete mal construido, faltan env vars, IAM incorrecto
+**Cause**: Poorly constructed package, missing env vars, incorrect IAM
 
-**Diagnóstico**:
-1. Mira logs en CloudWatch: `aws logs tail /aws/lambda/alex-{agent-name} --follow`
-2. Comprueba variables de entorno en consola Lambda
-3. ¿El rol IAM tiene los permisos?
-4. ¿Se empaquetó Lambda con Docker para linux/amd64?
+**Diagnosis**:
+1. View logs in CloudWatch: `aws logs tail /aws/lambda/alex-{agent-name} --follow`
+2. Check environment variables in Lambda console
+3. Does the IAM role have the permissions?
+4. Is Lambda packaged with Docker for linux/amd64?
 
-**Soluciones**:
-1. Empaquetado: Re-ejecuta `package_docker.py` con Docker iniciado
-2. Env vars: Verifícalas en consola o `terraform.tfvars`
-3. IAM: revisa policy en terraform
+**Solutions**:
+1. Packaging: Re-run `package_docker.py` with Docker started
+2. Env vars: Check them in console or `terraform.tfvars`
+3. IAM: review policy in terraform
 
-### Problema 5: Falla conexión a base de datos Aurora
+### Problem 5: Connection to Aurora database fails
 
-**Síntomas**: "Cluster not found", "Secret not found", errores Data API
+**Symptoms**: "Cluster not found", "Secret not found", Data API errors
 
-**Causa**: Base de datos sin inicializar, ARNs incorrectos o Data API deshabilitado
+**Cause**: Uninitialized database, incorrect ARNs, or disabled Data API
 
-**Diagnóstico**:
-1. Estado del cluster: `aws rds describe-db-clusters`
-2. ¿Data API está habilitado? (debe poner `EnableHttpEndpoint: true`)
-3. Comprueba los ARN en variables de entorno
-4. ¿La base de datos aún está inicializando? (tarda 10-15 min)
+**Diagnosis**:
+1. Cluster status: `aws rds describe-db-clusters`
+2. Is Data API enabled? (must put `EnableHttpEndpoint: true`)
+3. Check the RNAs in environment variables
+4. Is the database still initializing? (takes 10-15 min)
 
-**Soluciones**:
-1. Espera a ver "available" en el cluster
-2. Verifica el Data API en consola RDS
-3. Ejecuta `terraform output` en `5_database` para ARN correctos
-4. Actualiza env vars con los ARN reales
+**Solutions**:
+1. Wait to see "available" in the cluster
+2. Check the Data API in the RDS console
+3. Run `terraform output` on `5_database` for correct ARNs
+4. Update env vars with the current ARNs
 
 ---
 
-## Resumen Técnico de Arquitectura
+##Architecture Technical Summary
 
-### Servicios Principales por Guía
+### Main Services by Guide
 
-**Guías 1-2**: Fundamentos
-- Permisos IAM
-- Endpoint SageMaker Serverless (embeddings)
+**Guides 1-2**: Fundamentals
+- IAM permissions
+- SageMaker Serverless Endpoint (embeddings)
 
-**Guía 3**: Almacenamiento Vectorial
-- Bucket S3 Vectors e índice
-- Lambda de ingestión
+**Guide 3**: Vector Storage
+- Bucket S3 Vectors and index
+- Lambda Ingestion
 - API Gateway + API key
 
-**Guía 4**: Agente de Investigación
-- Servicio App Runner (Researcher)
-- Repositorio ECR
-- EventBridge scheduler (opcional)
+**Guide 4**: Investigation Agent
+- App Runner Service (Researcher)
+- ECR Repository
+- EventBridge scheduler (optional)
 
-**Guía 5**: Base de Datos
+**Guide 5**: Database
 - Aurora Serverless v2 PostgreSQL
-- Data API habilitado
-- Secrets Manager para credenciales
-- Esquema y seed data base de datos - **IMPORTANTE** lee el esquema
+- Data API enabled
+- Secrets Manager for credentials
+- Schema and seed data database - **IMPORTANT** read the schema
 
-**Guía 6**: Orquesta de Agentes (la principal)
+**Guide 6**: Agents Orchestra (the main one)
 - 5 lambdas: Planner, Tagger, Reporter, Charter, Retirement
-- Cada lambda usando OpenAI Agents SDK con código simple. Mira implementaciones para detalles.
-- SQS para orquestación
-- Bucket S3 para paquetes (>50MB)
-- Permisos IAM entre servicios
+- Each lambda using OpenAI Agents SDK with simple code. See implementations for details.
+- SQS for orchestration
+- S3 bucket for packets (>50MB)
+- IAM permissions between services
 
-**Guía 7**: Frontend
-- Sitio NextJS estático en S3
+**Guide 7**: Frontend
+- Static NextJS site on S3
 - CDN CloudFront
 - API Gateway + Lambda backend
-- Autenticación Clerk
+- Clerk Authentication
 
-**Guía 8**: Enterprise
-- Dashboards CloudWatch
-- Alarmas y monitorización
-- Observabilidad LangFuse
-- Logging avanzado
+**Guide 8**: Enterprise
+- CloudWatch Dashboards
+- Alarms and monitoring
+- LangFuse Observability
+- Advanced logging
 
-### Patrón de Colaboración de Agentes
+### Agent Collaboration Pattern
 
 ```
-Petición Usuario → SQS → Planner (Orquestador)
-                             ├─→ Tagger (si es necesario)
+User Request → SQS → Planner
+                             ├─→ Tagger (if necessary)
                              ├─→ Reporter ──┐
-                             ├─→ Charter ───┼─→ Resultados → Base de Datos
+                             ├─→ Charter ───┼─→ Results → Database
                              └─→ Retirement ┘
 ```
 
-### Gestión de Costes
+### Cost Management
 
-**Optimización de costes**:
-- Destruye Aurora al no trabajar (mayor ahorro)
-- Usa `terraform destroy` en cada directorio
-- Monitorea costes en Cost Explorer
+**Cost optimization**:
+- Destroy Aurora by not working (greater savings)
+- Use `terraform destroy` on each directory
+- Monitor costs in Cost Explorer
 
-### Proceso de Limpieza
+### Cleaning Process
 
 ```bash
-# Destruir en orden inverso (opcional, pero más limpio)
+# Destroy in reverse order (optional, but cleaner)
 cd terraform/8_enterprise && terraform destroy
 cd terraform/7_frontend && terraform destroy
 cd terraform/6_agents && terraform destroy
-cd terraform/5_database && terraform destroy  # Mayor ahorro
+cd terraform/5_database && terraform destroy # Bigger savings
 cd terraform/4_researcher && terraform destroy
 cd terraform/3_ingestion && terraform destroy
 cd terraform/2_sagemaker && terraform destroy
@@ -533,62 +533,62 @@ cd terraform/2_sagemaker && terraform destroy
 
 ---
 
-## Archivos Clave que Editan los Estudiantes
+## Key Files that Students Edit
 
-### Archivos de Configuración
-- `.env` - Variables de entorno raíz (añadir valores según la guía)
-- `frontend/.env.local` - Configuración Clerk en el frontend
-- `terraform/*/terraform.tfvars` - Cada carpeta terraform (copiar de .example)
+### Configuration Files
+- `.env` - Root environment variables (add values ​​as per guide)
+- `frontend/.env.local` - Clerk configuration on the frontend
+- `terraform/*/terraform.tfvars` - Each terraform folder (copy from .example)
 
-### Archivos de Código que Pueden Modificar
-- `backend/researcher/server.py` - Configuración de región y modelo (Guía 4) - esto debe venir de variables, no requiere cambio de código normalmente
-- Plantillas de agentes en `backend/*/templates.py` - Para personalización
-- Páginas frontend para cambios UI
-
----
-
-## Buscando Ayuda
-
-### Para Estudiantes
-
-Si te atascas:
-
-1. **Repasa bien la guía** - Casi todos los pasos tienen troubleshooting
-2. **Revisa los mensajes de error** - Mira los logs CloudWatch, no solo el terminal
-3. **Verifica requisitos previos** - ¿Docker está en marcha? ¿Tienes permisos? ¿Está terraform.tfvars configurado?
-4. **Contacta con el instructor**:
-   - **Pregunta en Frogames Formación** - Incluye la guía/día, mensaje de error y lo que probaste
-   - **Email para Juan Gabriel**: juangabriel@frogames.es
-
-Incluye cuando pidas ayuda:
-- Guía/día en la que estás
-- Mensaje de error exacto (pega y no resumas)
-- Qué comando ejecutaste
-- Logs CloudWatch relevantes si los tienes
-- Qué has probado ya
-
-### Para Claude Code (AI Assistant)
-
-Cuando ayudes a estudiantes:
-
-0. **Prepárate** - Lee todas las guías para estar informado
-1. **Establece el contexto** - ¿Guía? ¿Objetivo?
-2. **Consigue detalles de error** - Mensajes, logs, consola
-3. **Diagnostica primero** - No escribas código sin entender el problema
-4. **Piensa incrementalmente** - Un cambio cada vez
-5. **Verifica entendimiento** - Explica antes qué crees que pasa antes de cambiar nada
-6. **Simplifica** - No sobre-ingenieríes soluciones
-
-**Recuerda**: Los alumnos están aprendiendo. El objetivo es que entiendan qué fue mal y cómo arreglarlo, no solo tapar el error.
+### Code Files That Can Modify
+- `backend/researcher/server.py` - Region and model configuration (Guide 4) - this should come from variables, no code change required normally
+- Agent templates in `backend/*/templates.py` - For customization
+- Frontend pages for UI changes
 
 ---
 
-### Contexto del Curso
+##Looking for Help
+
+### For Students
+
+If you get stuck:
+
+1. **Review the guide well** - Almost all the steps have troubleshooting
+2. **Check error messages** - Look at CloudWatch logs, not just the terminal
+3. **Check prerequisites** - Is Docker up and running? Do you have permissions? Is terraform.tfvars configured?
+4. **Contact the instructor**:
+   - **Ask in Frogames Training** - Includes the guide/day, error message and what you tried
+   - **Email for Juan Gabriel**: juangabriel@frogames.es
+
+Include when you ask for help:
+- Guide/day you are on
+- Exact error message (paste and don't summarize)
+-What command did you execute?
+- Relevant CloudWatch logs if you have them
+-What have you already tried?
+
+### For Claude Code (AI Assistant)
+
+When you help students:
+
+0. **Be Prepared** - Read all the guides to be informed
+1. **Establishes the context** - Guide? Aim?
+2. **Get error details** - Messages, logs, console
+3. **Diagnose first** - Don't write code without understanding the problem
+4. **Think incrementally** - One change at a time
+5. **Check understanding** - Explain first what you think is happening before changing anything
+6. **Simplify** - Don't over-engineer solutions
+
+**Remember**: Students are learning. The goal is for them to understand what went wrong and how to fix it, not just cover up the mistake.
+
+---
+
+### Course Context
 - Instructor: Juan Gabriel Gomila
-- Plataforma: Frogames Formación
-- Curso: IA en Producción
-- Proyecto: "Alex" - Capstone de semanas 3-4
+- Platform: Frogames Training
+- Course: AI in Production
+- Project: "Alex" - Capstone of weeks 3-4
 
 ---
 
-*Esta guía fue creada para ayudar a asistentes (como Claude Code) a apoyar eficazmente a los estudiantes del proyecto Alex. Última actualización: Octubre 2025*
+*This guide was created to help assistants (like Claude Code) effectively support Alex Project students. Last update: October 2025*

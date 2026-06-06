@@ -1,38 +1,38 @@
-# Alex - el Explicador Agentic Learning Equities
+# Alex - the Explainer Agentic Learning Equities
 
-## Planificador Financiero SaaS Empresarial Multiagente
+## Multi-Agent Enterprise SaaS Financial Planner
 
-![Imagen del Curso](assets/alex.png)
+![Course Image](assets/alex.png)
 
-_Si estás viendo esto en Cursor, por favor haz clic derecho en el nombre del archivo en el Explorador a la izquierda y selecciona "Abrir vista previa" para verlo con formato._
+_If you are viewing this in Cursor, please right-click the file name in the Explorer on the left and select "Open Preview" to view it formatted._
 
-### ¡Bienvenido al Proyecto Capstone de la Semana 3 y Semana 4!
+### Welcome to the Week 3 and Week 4 Capstone Project!
 
-#### Los directorios:
+#### The directories:
 
-1. **guides** - aquí es donde vas a trabajar: guías paso a paso para desplegar en producción
-2. **backend** - el código de los agentes, organizado en subdirectorios, cada uno es un proyecto uv (también el directorio backend principal)
-3. **frontend** - un frontend React NextJS integrado con Clerk
-4. **terraform** - subdirectorios terraform separados, con estado independiente para cada parte
-5. **scripts** - el script final de despliegue
+1. **guides** - this is where you'll work: step-by-step guides for deploying to production
+2. **backend** - the agents code, organized in subdirectories, each one is a uv project (also the main backend directory)
+3. **frontend** - a React NextJS frontend integrated with Clerk
+4. **terraform** - separate terraform subdirectories, with separate state for each part
+5. **scripts** - the final deployment script
 
-#### Orden de trabajo:
+#### Work order:
 
-##### Semana 3
+##### Week 3
 
-- En el Día 3 de la Semana 3, haremos 1_permissions y 2_sagemaker
-- En el Día 4 de la Semana 3, haremos 3_ingest
-- En el Día 5 de la Semana 3, haremos 4_researcher
+- On Day 3 of Week 3, we will do 1_permissions and 2_sagemaker
+- On Day 4 of Week 3, we will do 3_ingest
+- On Day 5 of Week 3, we will do 4_researcher
 
-##### Semana 4
+##### Week 4
 
-- En el Día 1 de la Semana 4, haremos 5_database
-- En el Día 2 de la Semana 4, haremos 6_agents
-- En el Día 3 de la Semana 4, haremos 7_frontend
-- En el Día 4 de la Semana 4, haremos 8_enterprise
+- On Day 1 of Week 4, we will make 5_database
+- On Day 2 of Week 4, we will make 6_agents
+- On Day 3 of Week 4, we will do 7_frontend
+- On Day 4 of Week 4, we will do 8_enterprise
 
 #### Ten en cuenta
 
-- Por favor, envía tus contribuciones comunitarias, incluyendo enlaces a tus repositorios, en la carpeta community_contributions del repositorio de producción
-- Haz git pull regularmente para obtener el código más reciente
-- Si necesitas ayuda, contacta por Frogames Formación. ¡Este es un proyecto enorme y estoy aquí para ayudarte a lograrlo!
+- Please submit your community contributions, including links to your repositories, in the community_contributions folder of the production repository
+- Do git pull regularly to get the latest code
+- If you need help, contact Frogames Training. This is a huge project and I'm here to help you get it done!

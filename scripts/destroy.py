@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-Destruye la infraestructura de Alex Financial Advisor Parte 7.
-Este script:
-1. Vacía el bucket de S3
-2. Destruye la infraestructura con Terraform
-3. Limpia los artefactos locales
+Destroy the infrastructure of Alex Financial Advisor Part 7.
+This script:
+1. Empty the S3 bucket
+2. Destroy infrastructure with Terraform
+3. Clean local artifacts
 """
 
 import subprocess
 import sys
-import os
+import you
 from pathlib import Path
 
 
 def run_command(cmd, cwd=None, check=True, capture_output=False):
-    """Ejecuta un comando y opcionalmente captura la salida."""
-    print(f"Ejecutando: {' '.join(cmd) if isinstance(cmd, list) else cmd}")
+    """Run a command and optionally capture the output."""
+    print(f"Executing: {' '.join(cmd) if isinstance(cmd, list) else cmd}")
 
     if capture_output:
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, shell=isinstance(cmd, str))
@@ -31,29 +31,29 @@ def run_command(cmd, cwd=None, check=True, capture_output=False):
 
 
 def confirm_destruction():
-    """Pide confirmación antes de destruir los recursos."""
-    print("⚠️  ADVERTENCIA: ¡Esto destruirá toda la infraestructura de la Parte 7!")
-    print("Esto incluye:")
-    print("  - Distribución CloudFront")
-    print("  - API Gateway")
-    print("  - Función Lambda")
-    print("  - Bucket S3 y todos sus contenidos")
-    print("  - Roles y políticas IAM")
+    """Ask for confirmation before destroying resources."""
+    print("⚠️ WARNING: This will destroy the entire Part 7 infrastructure!")
+    print("This includes:")
+    print(" - CloudFront Distribution")
+    print(" - API Gateway")
+    print(" - Lambda Function")
+    print(" - S3 bucket and all its contents")
+    print(" - IAM roles and policies")
     print("")
 
-    response = input("¿Estás seguro de que quieres continuar? Escribe 'yes' para confirmar: ")
+    response = input("Are you sure you want to continue? Type 'yes' to confirm: ")
     return response.lower() == 'yes'
 
 
 def get_bucket_name():
-    """Obtiene el nombre del bucket S3 desde la salida de Terraform."""
+    """Gets the name of the S3 bucket from the Terraform output."""
     terraform_dir = Path(__file__).parent.parent / "terraform" / "7_frontend"
 
     if not terraform_dir.exists():
-        print(f"  ❌ Directorio de Terraform no encontrado: {terraform_dir}")
+        print(f" ❌ Terraform directory not found: {terraform_dir}")
         return None
 
-    # Obtener el bucket desde Terraform
+    # Get the bucket from Terraform
     bucket_output = run_command(
         ["terraform", "output", "-raw", "s3_bucket_name"],
         cwd=terraform_dir,
@@ -64,14 +64,14 @@ def get_bucket_name():
 
 
 def empty_s3_bucket(bucket_name):
-    """Vacía el bucket de S3 antes de la eliminación."""
+    """Empty the S3 bucket before deletion."""
     if not bucket_name:
-        print("  ⚠️  No se proporcionó un nombre de bucket, omitiendo...")
+        print(" ⚠️ No bucket name provided, skipping...")
         return
 
-    print(f"\n🗑️  Vaciando el bucket S3: {bucket_name}")
+    print(f"\n🗑️ Emptying S3 bucket: {bucket_name}")
 
-    # Comprobar si el bucket existe
+    # Check if the bucket exists
     exists = run_command(
         ["aws", "s3", "ls", f"s3://{bucket_name}"],
         capture_output=True,
@@ -79,61 +79,61 @@ def empty_s3_bucket(bucket_name):
     )
 
     if not exists:
-        print(f"  El bucket {bucket_name} no existe o ya está vacío")
+        print(f" Bucket {bucket_name} does not exist or is already empty")
         return
 
-    # Elimina todos los objetos
-    print(f"  Eliminando todos los objetos de {bucket_name}...")
+    # Delete all objects
+    print(f" Deleting all objects from {bucket_name}...")
     run_command([
         "aws", "s3", "rm",
         f"s3://{bucket_name}/",
         "--recursive"
     ])
 
-    # Elimina todas las versiones (si el versionado está habilitado)
-    print(f"  Eliminando todas las versiones de objetos...")
+    # Remove all versions (if versioning is enabled)
+    print(f" Deleting all object versions...")
     run_command([
         "aws", "s3api", "delete-objects",
         "--bucket", bucket_name,
         "--delete", "$(aws s3api list-object-versions --bucket " + bucket_name + " --output json --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}')"
     ], check=False)
 
-    print(f"  ✅ Bucket {bucket_name} vaciado")
+    print(f" ✅ Bucket {bucket_name} emptied")
 
 
 def destroy_terraform():
-    """Destruye la infraestructura con Terraform."""
-    print("\n🏗️  Destruyendo infraestructura con Terraform...")
+    """Destroy infrastructure with Terraform."""
+    print("\n🏗️ Destroying infrastructure with Terraform...")
 
     terraform_dir = Path(__file__).parent.parent / "terraform" / "7_frontend"
 
     if not terraform_dir.exists():
-        print(f"  ❌ Directorio de Terraform no encontrado: {terraform_dir}")
+        print(f" ❌ Terraform directory not found: {terraform_dir}")
         return False
 
-    # Comprobar si Terraform está inicializado
+    # Check if Terraform is initialized
     if not (terraform_dir / ".terraform").exists():
-        print("  ⚠️  Terraform no inicializado, nada que destruir")
+        print(" ⚠️ Terraform not initialized, nothing to destroy")
         return True
 
-    # Destruye la infraestructura
-    print("  Ejecutando terraform destroy...")
-    print("  Escribe 'yes' cuando se solicite para confirmar la destrucción.")
+    # Destroy infrastructure
+    print("Running terraform destroy...")
+    print(" Type 'yes' when prompted to confirm destruction.")
 
     success = run_command(["terraform", "destroy"], cwd=terraform_dir)
 
     if success:
-        print("  ✅ Infraestructura destruida exitosamente")
+        print(" ✅ Infrastructure successfully destroyed")
     else:
-        print("  ❌ Falló la destrucción de la infraestructura")
-        print("  Puede que necesites limpiar los recursos manualmente en la Consola de AWS")
+        print(" ❌ Infrastructure destruction failed")
+        print("You may need to manually clean up resources in the AWS Console.")
 
     return success
 
 
 def clean_local_artifacts():
-    """Limpia los artefactos de construcción locales."""
-    print("\n🧹 Limpiando artefactos locales...")
+    """Clean up local construction artifacts."""
+    print("\n🧹 Cleaning up local artifacts...")
 
     artifacts = [
         Path(__file__).parent.parent / "backend" / "api" / "api_lambda.zip",
@@ -145,42 +145,42 @@ def clean_local_artifacts():
         if artifact.exists():
             if artifact.is_file():
                 artifact.unlink()
-                print(f"  Eliminado: {artifact}")
+                print(f" Removed: {artifact}")
             else:
                 import shutil
                 shutil.rmtree(artifact)
-                print(f"  Directorio eliminado: {artifact}")
+                print(f" Deleted directory: {artifact}")
 
-    print("  ✅ Artefactos locales limpiados")
+    print(" ✅ Local artifacts cleaned")
 
 
 def main():
-    """Función principal de destrucción."""
-    print("💥 Alex Financial Advisor - Destrucción de Infraestructura Parte 7")
+    """Main destruction function."""
+    print("💥 Alex Financial Advisor - Infrastructure Destruction Part 7")
     print("=" * 60)
 
-    # Confirmar destrucción
+    # Confirm destruction
     if not confirm_destruction():
-        print("\n❌ Destrucción cancelada")
+        print("\n❌ Destruction cancelled")
         sys.exit(0)
 
-    # Obtener nombre de bucket antes de destruir la infraestructura
+    # Get bucket name before destroying infrastructure
     bucket_name = get_bucket_name()
 
-    # Vacía el bucket S3 primero (requerido antes de que Terraform pueda eliminarlo)
+    # Empty the S3 bucket first (required before Terraform can delete it)
     if bucket_name:
         empty_s3_bucket(bucket_name)
 
-    # Destruye la infraestructura de Terraform
+    # Destroy Terraform infrastructure
     destroy_terraform()
 
-    # Limpia artefactos locales
+    # Clean local artifacts
     clean_local_artifacts()
 
     print("\n" + "=" * 60)
-    print("✅ ¡Destrucción completa!")
-    print("\nPara volver a desplegar, ejecuta:")
-    print("  uv run scripts/deploy.py")
+    print("✅ Complete destruction!")
+    print("\nTo redeploy, run:")
+    print(" uv run scripts/deploy.py")
 
 
 if __name__ == "__main__":
