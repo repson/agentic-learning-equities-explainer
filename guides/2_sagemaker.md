@@ -1,324 +1,324 @@
-# Construyendo Alex: Parte 2 - Despliegue Serverless en SageMaker
+# Building Alex: Part 2 - Serverless Deployment on SageMaker
 
-¡Bienvenido de nuevo! En esta guía, desplegaremos un endpoint serverless de SageMaker que generará embeddings para la base de conocimientos de Alex. Esto es un componente crítico: convierte texto en vectores numéricos que se pueden buscar y comparar.
+Welcome back! In this guide, we will deploy a serverless SageMaker endpoint that generates embeddings for Alex's knowledge base. This is a critical component: it converts text into numerical vectors that can be searched and compared.
 
-## RECORDATORIO - ¡CONSEJO IMPORTANTE!
+## REMINDER - IMPORTANT TIP!
 
-Hay un archivo `gameplan.md` en la raíz del proyecto que describe todo el proyecto de Alex para un Agente de IA, para que puedas hacer preguntas y recibir ayuda. También existen los archivos idénticos `CLAUDE.md` y `AGENTS.md`. Si necesitas ayuda, simplemente inicia tu Agente de IA favorito y dale esta instrucción:
+There is a `gameplan.md` file at the project root that describes the full Alex project for an AI Agent, so you can ask questions and get help. There are also identical files `CLAUDE.md` and `AGENTS.md`. If you need help, simply open your favorite AI Agent and give it this prompt:
 
-> Soy estudiante del curso AI in Production. Estamos en el repositorio del curso. Lee el archivo `gameplan.md` para obtener información sobre el proyecto. Lee este archivo completamente y revisa todas las guías enlazadas cuidadosamente. No inicies ningún trabajo excepto leer y revisar la estructura de directorios. Cuando termines de leer, dime si tienes preguntas antes de empezar.
+> I am a student in the AI in Production course. We are in the course repository. Read the `gameplan.md` file for project context. Read this file completely and carefully review all linked guides. Do not start any work except reading and reviewing the directory structure. When you finish reading, tell me whether you have questions before we begin.
 
-Después de responder preguntas, indica exactamente en qué guía estás y cualquier problema que encuentres. Ten cuidado de validar cada sugerencia; siempre pregunta por la causa raíz y evidencia de los problemas. Los LLMs suelen sacar conclusiones apresuradas, pero a menudo se corrigen cuando necesitan aportar pruebas.
+After answering questions, clearly indicate which guide you are on and any issues you encounter. Be careful to validate each suggestion; always ask for root cause and evidence for the issue. LLMs tend to jump to conclusions, but they often correct themselves when they need to provide evidence.
 
-## Resumen de la Arquitectura
+## Architecture Overview
 
-## ¿Por qué SageMaker?
+## Why SageMaker?
 
-Utilizamos SageMaker por varias razones importantes:
-1. **Preparado para producción**: Maneja el escalado, monitoreo y disponibilidad
-2. **Rentable**: Los endpoints serverless escalan a cero cuando no están en uso
-3. **Habilidad profesional**: SageMaker es ampliamente usado en entornos empresariales de IA
+We use SageMaker for several key reasons:
+1. **Production-ready**: It handles scaling, monitoring, and availability
+2. **Cost-effective**: Serverless endpoints scale to zero when idle
+3. **Professional skillset**: SageMaker is widely used in enterprise AI environments
 
-## ¿Qué vamos a construir?
+## What will we build?
 
-Implementaremos:
-- Un modelo de SageMaker que descarga automáticamente `all-MiniLM-L6-v2` desde HuggingFace Hub
-- Un endpoint serverless que escala automáticamente
-- Infraestructura como Código utilizando Terraform
+We will implement:
+- A SageMaker model that automatically downloads `all-MiniLM-L6-v2` from HuggingFace Hub
+- A serverless endpoint that scales automatically
+- Infrastructure as Code using Terraform
 
-La belleza de este enfoque: ¡no es necesario preparar el modelo! El contenedor HuggingFace de SageMaker lo gestiona todo.
+The beauty of this approach: no model artifact preparation is required! SageMaker's HuggingFace container handles everything.
 
-## Requisitos previos
+## Prerequisites
 
-Antes de empezar:
-- Completa [1_permissions.md](1_permissions.md)
-- Tener instalado Terraform (versión 1.5+)
+Before starting:
+- Complete [1_permissions.md](1_permissions.md)
+- Have Terraform installed (version 1.5+)
 
-## Paso 1: Configura las variables de Terraform
+## Step 1: Configure Terraform variables
 
-Primero, vamos a preparar la configuración de Terraform para esta guía:
+First, let's prepare the Terraform configuration for this guide:
 
 ```bash
-# Navega al directorio de terraform de SageMaker
+# Navigate to the SageMaker Terraform directory
 cd terraform/2_sagemaker
 
-# Copia el archivo de variables de ejemplo
+# Copy the example variables file
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-Edita `terraform.tfvars` y configura tu región AWS (debe coincidir con tu DEFAULT_AWS_REGION):
+Edit `terraform.tfvars` and set your AWS region (it must match your DEFAULT_AWS_REGION):
 ```hcl
-aws_region = "us-east-1"  # Usa tu DEFAULT_AWS_REGION de .env
+aws_region = "us-east-1"  # Use your DEFAULT_AWS_REGION from .env
 ```
 
-## Paso 2: Despliega con Terraform
+## Step 2: Deploy with Terraform
 
-Ahora vamos a desplegar la infraestructura de SageMaker. ¡Con el enfoque HuggingFace, no es necesario preparar los artefactos del modelo: el modelo se descargará automáticamente desde HuggingFace Hub!
+Now let's deploy the SageMaker infrastructure. With the HuggingFace approach, model artifacts are not needed: the model is downloaded automatically from HuggingFace Hub.
 
 ```bash
-# Inicializa Terraform (crea el archivo de estado local)
+# Initialize Terraform (creates the local state file)
 terraform init
 
-# Despliega la infraestructura de SageMaker
+# Deploy SageMaker infrastructure
 terraform apply
 ```
 
-Cuando se te pida, escribe `yes` para confirmar el despliegue. Esto creará:
-- Rol IAM para SageMaker
-- Configuración del modelo SageMaker (con el modelo de HuggingFace)
-- Endpoint serverless
+When prompted, type `yes` to confirm deployment. This creates:
+- IAM role for SageMaker
+- SageMaker model configuration (with the HuggingFace model)
+- Serverless endpoint
 
-## Paso 3: Entendiendo lo que se creó
+## Step 3: Understand what was created
 
-Terraform creó varios recursos:
+Terraform created several resources:
 
-1. **Rol IAM**: Da a SageMaker los permisos necesarios
-2. **Modelo de SageMaker**: Configuración apuntando al modelo de HuggingFace `sentence-transformers/all-MiniLM-L6-v2`
-3. **Endpoint Serverless**: El endpoint API para generar embeddings
+1. **IAM role**: Gives SageMaker the required permissions
+2. **SageMaker model**: Configuration pointing to HuggingFace model `sentence-transformers/all-MiniLM-L6-v2`
+3. **Serverless endpoint**: API endpoint for generating embeddings
 
-Después del despliegue, Terraform mostrará salidas importantes incluyendo instrucciones de configuración.
+After deployment, Terraform shows important outputs including setup instructions.
 
-### Guarda tu configuración
+### Save your configuration
 
-**Importante**: Actualiza tu archivo `.env` con el nombre del endpoint:
+**Important**: Update your `.env` file with the endpoint name:
 
-1. Anota el nombre del endpoint del output de Terraform (debería ser `alex-embedding-endpoint`)
-2. Edita `.env` en Cursor
-3. Actualiza esta línea:
+1. Note the endpoint name from Terraform output (it should be `alex-embedding-endpoint`)
+2. Edit `.env` in Cursor
+3. Update this line:
    ```
    # Part 2 - SageMaker
    SAGEMAKER_ENDPOINT=alex-embedding-endpoint
    ```
 
-💡 **Consejo**: Las salidas de Terraform se muestran al final de `terraform apply`. También puedes verlas en cualquier momento con:
+💡 **Tip**: Terraform outputs appear at the end of `terraform apply`. You can also view them anytime with:
 ```bash
 terraform output
 ```
 
-## Paso 4: Prueba el Endpoint
+## Step 4: Test the endpoint
 
-Vamos a verificar que el endpoint funciona con una prueba simple:
+Let's verify the endpoint works with a simple test:
 
 ```bash
-# Navega al directorio backend donde está el payload de prueba
+# Navigate to the backend directory where the test payload is
 cd ../../backend
 
-# Invoca el endpoint y muestra la salida directamente en la consola
+# Invoke the endpoint and print output directly to the console
 aws sagemaker-runtime invoke-endpoint --endpoint-name alex-embedding-endpoint --content-type application/json --body fileb://vectorize_me.json --output json /dev/stdout
 ```
 
-Verás un array JSON con 384 números de punto flotante; ese es el texto "vectorize me" convertido en embedding vectorial.
+You will see a JSON array with 384 floating-point numbers; that is the text "vectorize me" converted to an embedding vector.
 
-**Nota**: La primera petición a un endpoint serverless puede tardar 10-60 segundos (cold start). Las peticiones siguientes serán mucho más rápidas.
+**Note**: The first request to a serverless endpoint can take 10-60 seconds (cold start). Subsequent requests are much faster.
 
-## Análisis de Costos
+## Cost analysis
 
-Tu endpoint serverless:
-- **Escala a cero**: Sin cargos cuando no está en uso
-- **Precio por petición**: ~$0.00002 por segundo de cómputo
-- **Memoria**: 3GB asignados (límite por defecto en AWS para serverless)
-- **Costo estimado**: $1-2/mes para un uso típico (1000 peticiones/día)
+Your serverless endpoint:
+- **Scales to zero**: No charges when idle
+- **Per-request pricing**: ~$0.00002 per compute second
+- **Memory**: 3GB allocated (AWS default limit for serverless)
+- **Estimated cost**: $1-2/month for typical use (1000 requests/day)
 
-## Resolución de Problemas
+## Troubleshooting
 
-Si la invocación del endpoint falla:
+If endpoint invocation fails:
 
-1. **Verifica el estado del endpoint**:
+1. **Check endpoint status**:
 ```bash
 aws sagemaker describe-endpoint --endpoint-name alex-embedding-endpoint
 ```
-El estado debe ser "InService"
+Status should be "InService"
 
-2. **Consulta los logs de CloudWatch**:
+2. **Check CloudWatch logs**:
 ```bash
 aws logs tail /aws/sagemaker/Endpoints/alex-embedding-endpoint --follow
 ```
 
-3. **Verifica el ID del modelo HuggingFace**:
-Comprueba que el endpoint esté configurado con el modelo correcto:
+3. **Verify the HuggingFace model ID**:
+Confirm the endpoint is configured with the correct model:
 ```bash
 aws sagemaker describe-model --model-name alex-embedding-model --query 'PrimaryContainer.Environment'
 ```
-Debe mostrar: `{"HF_MODEL_ID": "sentence-transformers/all-MiniLM-L6-v2", "HF_TASK": "feature-extraction"}`
+It should show: `{"HF_MODEL_ID": "sentence-transformers/all-MiniLM-L6-v2", "HF_TASK": "feature-extraction"}`
 
-**Nota**: Si no estás en la región por defecto, añade `--region your-region` a estos comandos.
+**Note**: If you are not in your default region, add `--region your-region` to these commands.
 
-## Entendiendo Serverless vs Siempre Activo
+## Understanding serverless vs always-on
 
-Elegimos serverless porque:
-- **Cold start**: 5-10 segundos (aceptable para nuestro caso de uso)
-- **Ahorro de costes**: ~$1-2/mes vs $50-100/mes para siempre activo
-- **Auto-escalado**: Maneja picos de tráfico automáticamente
+We chose serverless because:
+- **Cold start**: 5-10 seconds (acceptable for our use case)
+- **Cost savings**: ~$1-2/month vs $50-100/month for always-on
+- **Auto-scaling**: Handles traffic spikes automatically
 
-Para sistemas en producción con requisitos estrictos de latencia, podrías elegir endpoints siempre activos.
+For production systems with strict latency requirements, you may prefer always-on endpoints.
 
-## MLOps en SageMaker
+## MLOps in SageMaker
 
-### ¿Qué es MLOps?
+### What is MLOps?
 
-MLOps (Machine Learning Operations) es la práctica de aplicar principios DevOps a sistemas de machine learning. SageMaker es la plataforma integral de AWS para MLOps, proporcionando herramientas para todo el ciclo de vida del ML: preparación de datos, entrenamiento de modelos, despliegue, monitoreo y reentrenamiento.
+MLOps (Machine Learning Operations) is the practice of applying DevOps principles to machine learning systems. SageMaker is AWS's end-to-end MLOps platform, providing tools for the entire ML lifecycle: data preparation, model training, deployment, monitoring, and retraining.
 
-En sistemas ML en producción necesitas gestionar:
-- **Versionado de modelos**: Seguir distintas versiones a medida que evolucionan
-- **A/B Testing**: Comparar el rendimiento de modelos en producción
-- **Monitoreo de modelos**: Detectar cuando los modelos degradan su desempeño
-- **Reentrenamiento automático**: Reentrenar modelos cuando su rendimiento baja
-- **Registro de modelos**: Repositorio central para modelos aprobados
-- **Automatización de pipelines**: Orquestar todo el flujo de trabajo ML
+In production ML systems, you need to manage:
+- **Model versioning**: Track different versions as models evolve
+- **A/B testing**: Compare model performance in production
+- **Model monitoring**: Detect when model performance degrades
+- **Automatic retraining**: Retrain models when performance drops
+- **Model registry**: Central repository for approved models
+- **Pipeline automation**: Orchestrate the full ML workflow
 
-### Model Drift y por qué importa
+### Model drift and why it matters
 
-**Model drift** ocurre cuando el rendimiento del modelo se degrada con el tiempo porque los datos en producción difieren de los datos de entrenamiento. Para nuestro modelo de embeddings, puede ocurrir drift si:
-- El lenguaje evoluciona (aparecen nuevos términos financieros)
-- Cambia el comportamiento de usuario (diferentes tipos de consultas)
-- Cambian condiciones del mercado (nuevos productos de inversión)
+**Model drift** happens when model performance degrades over time because production data differs from training data. For our embedding model, drift can happen if:
+- Language evolves (new financial terms appear)
+- User behavior changes (different query types)
+- Market conditions change (new investment products)
 
-SageMaker Model Monitor puede detectar automáticamente el drift:
-- Analizando las distribuciones de predicciones en el tiempo
-- Comparando entradas actuales con los datos de entrenamiento
-- Alertando cuando las propiedades estadísticas cambian significativamente
-- Activando pipelines de reentrenamiento automático
+SageMaker Model Monitor can automatically detect drift by:
+- Analyzing prediction distributions over time
+- Comparing current inputs with training data
+- Alerting when statistical properties change significantly
+- Triggering automatic retraining pipelines
 
-### Explora SageMaker en la consola de AWS
+### Explore SageMaker in the AWS Console
 
-Exploremos qué más puede hacer SageMaker. Ve a la consola y revisa estas secciones:
+Let's explore what else SageMaker can do. Open the console and review these sections:
 
-1. **Ir a la consola de SageMaker**:
+1. **Go to the SageMaker console**:
    ```
    https://console.aws.amazon.com/sagemaker/
    ```
 
-2. **Explora funcionalidades clave de MLOps** (barra lateral izquierda):
-   - **Model Registry**: Descubre cómo los equipos gestionan las versiones de modelos
-   - **Pipelines**: Ve cómo se automatizan los flujos ML
-   - **Model Monitor**: Observa cómo funciona la detección de drift
-   - **Experiments**: Rastrea ejecuciones de entrenamiento e hiperparámetros
-   - **Feature Store**: Gestión centralizada de features
-   - **Ground Truth**: Servicio de etiquetado de datos
+2. **Explore key MLOps features** (left sidebar):
+   - **Model Registry**: See how teams manage model versions
+   - **Pipelines**: See how ML workflows are automated
+   - **Model Monitor**: Review how drift detection works
+   - **Experiments**: Track training runs and hyperparameters
+   - **Feature Store**: Centralized feature management
+   - **Ground Truth**: Data labeling service
 
-3. **Verifica tu endpoint**:
-   - Haz clic en "Inference" → "Endpoints"
-   - Busca `alex-embedding-endpoint`
-   - Haz clic para ver métricas, configuración y opciones de monitoreo
-   - Observa la opción "Data capture" para monitoreo
+3. **Verify your endpoint**:
+   - Click "Inference" -> "Endpoints"
+   - Find `alex-embedding-endpoint`
+   - Click to view metrics, configuration, and monitoring options
+   - Check the "Data capture" option for monitoring
 
-4. **Explora versiones de modelos**:
-   - Haz clic en "Inference" → "Models"
-   - Observa cómo SageMaker rastrea artefactos y configuraciones de modelos
-   - Cada modelo tiene un ARN único para versionado
+4. **Explore model versions**:
+   - Click "Inference" -> "Models"
+   - See how SageMaker tracks model artifacts and configurations
+   - Each model has a unique ARN for versioning
 
-### SageMaker vs Bedrock: Cuándo usar cada uno
+### SageMaker vs Bedrock: when to use each
 
-Ya has trabajado con Bedrock, así que aclaramos cuándo usar cada servicio:
+You have already worked with Bedrock, so here's when to use each service:
 
-| Aspecto | SageMaker | Bedrock |
+| Aspect | SageMaker | Bedrock |
 |---------|-----------|---------|
-| **Caso de uso** | Desplegar TUS modelos o modelos fine-tuned | Usar modelos fundacionales pre-entrenados vía API |
-| **Fuente del modelo** | Open source, entrenados a medida o fine-tuned | Modelos gestionados por AWS (Claude, Llama, etc.) |
-| **Personalización** | Control total de modelo, entrenamiento e infraestructura | Limitado a prompt engineering y RAG |
-| **Modelo de coste** | Pagas por infraestructura (horas de cómputo) | Pagas por cada llamada API (tokens) |
-| **Complejidad de setup** | Mayor: gestionas endpoints, escalado y monitoreo | Menor: solo llamadas API |
-| **Características de MLOps** | Completo: versionado, monitoreo y pipelines | Mínimo: sólo rastreo de uso |
-| **Ideal para** | • Modelos a medida<br>• Modelos fine-tuned<br>• Embeddings especializados<br>• Pipelines ML completos | • Tareas generales de lenguaje<br>• Prototipos rápidos<br>• Capacidades AI estándar |
-| **Latencia** | Predecible (siempre activo) o variable (serverless) | Generalmente baja y consistente |
-| **Escalado** | Tú gestionas (auto-escalado disponible) | Totalmente gestionado por AWS |
+| **Use case** | Deploy YOUR models or fine-tuned models | Use pre-trained foundation models via API |
+| **Model source** | Open source, custom-trained, or fine-tuned | AWS-managed models (Claude, Llama, etc.) |
+| **Customization** | Full control of model, training, and infrastructure | Limited to prompt engineering and RAG |
+| **Cost model** | Pay for infrastructure (compute hours) | Pay per API call (tokens) |
+| **Setup complexity** | Higher: you manage endpoints, scaling, and monitoring | Lower: API calls only |
+| **MLOps features** | Complete: versioning, monitoring, and pipelines | Minimal: usage tracking only |
+| **Best for** | • Custom models<br>• Fine-tuned models<br>• Specialized embeddings<br>• Full ML pipelines | • General language tasks<br>• Rapid prototyping<br>• Standard AI capabilities |
+| **Latency** | Predictable (always-on) or variable (serverless) | Generally low and consistent |
+| **Scaling** | You manage it (auto-scaling available) | Fully managed by AWS |
 
-### Decisiones en ejemplos reales
+### Decision examples from real projects
 
-**Usa SageMaker cuando:**
-- Necesites un modelo de embedding específico (como nuestro all-MiniLM-L6-v2)
-- Has fine-tuned un modelo con datos de tu empresa
-- Necesitas control total del versionado y despliegue
-- Quieres aplicar procesamiento personalizado (pre/post)
-- Necesitas monitorear drift de modelo
-- Cumplimiento requiere despliegue local o VPC
+**Use SageMaker when:**
+- You need a specific embedding model (like our all-MiniLM-L6-v2)
+- You fine-tuned a model with your company data
+- You need full control over versioning and deployment
+- You want custom pre/post processing
+- You need model drift monitoring
+- Compliance requires local or VPC deployment
 
-**Usa Bedrock cuando:**
-- Necesitas comprensión general de lenguaje (como nuestros agentes de la Parte 6)
-- Quieres prototipar rápidamente sin infraestructura
-- La tarea utiliza prompt engineering
-- Quieres acceso a modelos fundacionales de vanguardia
-- Quieres minimizar la operación continua
-- El modelo de precios por tokens se ajusta a tu uso
+**Use Bedrock when:**
+- You need general language understanding (like our Part 6 agents)
+- You want rapid prototyping without infrastructure
+- The task relies on prompt engineering
+- You want access to state-of-the-art foundation models
+- You want to minimize ongoing operations
+- Token-based pricing matches your usage
 
-### Capacidades Avanzadas de SageMaker
+### Advanced SageMaker capabilities
 
-Además de lo que hemos desplegado, SageMaker ofrece:
+Beyond what we deployed, SageMaker also provides:
 
-- **SageMaker Studio**: IDE para desarrollo ML
-- **Multi-Model Endpoints**: Hospeda varios modelos en un endpoint
-- **Model Compilation (Neo)**: Optimiza modelos para hardware específico
-- **Edge Deployment**: Despliega modelos a dispositivos IoT
-- **Entrenamiento distribuido**: Entrena modelos grandes en varios GPUs
-- **Ajuste de hiperparámetros**: Optimización automatizada de parámetros
-- **Batch Transform**: Procesamiento offline de grandes datasets
-- **Data Wrangler**: Herramienta visual de preparación de datos
+- **SageMaker Studio**: IDE for ML development
+- **Multi-Model Endpoints**: Host multiple models on one endpoint
+- **Model Compilation (Neo)**: Optimize models for specific hardware
+- **Edge Deployment**: Deploy models to IoT devices
+- **Distributed training**: Train large models across multiple GPUs
+- **Hyperparameter tuning**: Automated parameter optimization
+- **Batch Transform**: Offline processing for large datasets
+- **Data Wrangler**: Visual data preparation tool
 
-### Prueba esto: Revisa métricas del modelo
+### Try this: Review model metrics
 
-Mientras tu endpoint está funcionando, revisa sus métricas en CloudWatch:
+While your endpoint is running, review its CloudWatch metrics:
 
 ```bash
-# Visualiza métricas de invocación
+# View invocation metrics
 aws cloudwatch get-metric-statistics --namespace "AWS/SageMaker" --metric-name "Invocations" --dimensions Name=EndpointName,Value=alex-embedding-endpoint --start-time $(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%S) --end-time $(date -u +%Y-%m-%dT%H:%M:%S) --period 300 --statistics Sum --region $(aws configure get region)
 ```
 
-Esto muestra cómo SageMaker rastrea automáticamente el uso del modelo: ¡esencial para MLOps!
+This shows how SageMaker automatically tracks model usage - essential for MLOps.
 
-## Resolución de Problemas
+## Troubleshooting
 
-### Error "Endpoint Already Exists"
+### "Endpoint Already Exists" error
 
-Si ves el error "Cannot create already existing endpoint" durante `terraform apply`, significa que el endpoint se creó pero Terraform perdió seguimiento (generalmente porque se interrumpió el proceso). Para solucionarlo:
+If you see "Cannot create already existing endpoint" during `terraform apply`, it means the endpoint was created but Terraform lost tracking (usually because the process was interrupted). To fix it:
 
-**Opción 1: Importar el endpoint existente** (recomendado)
+**Option 1: Import the existing endpoint** (recommended)
 ```bash
 terraform import aws_sagemaker_endpoint.embedding_endpoint alex-embedding-endpoint
 terraform apply
 ```
 
-**Opción 2: Borrar y recrear**
+**Option 2: Delete and recreate**
 ```bash
 aws sagemaker delete-endpoint --endpoint-name alex-embedding-endpoint
-# Espera a que se complete el borrado (verifica con describe-endpoint)
+# Wait for deletion to complete (verify with describe-endpoint)
 terraform apply
 ```
 
-### Terraform Apply tarda mucho
+### Terraform apply takes too long
 
-Los endpoints serverless de SageMaker pueden tardar 3-5 minutos en crearse. ¡Ten paciencia y no interrumpas el proceso! Si lo interrumpes, sigue "Error Endpoint Already Exists" arriba.
+SageMaker serverless endpoints can take 3-5 minutes to create. Be patient and do not interrupt the process. If you interrupt it, follow "Endpoint Already Exists" above.
 
-### Falla la creación del Endpoint por error en rol IAM
+### Endpoint creation fails with IAM role error
 
-Si ves un error sobre IAM role inválido durante `terraform apply`, es debido a un problema conocido por delays de propagación IAM. La configuración de Terraform incluye una solución agregando un delay de 15 segundos antes de crear el endpoint para que el rol IAM se propague completamente.
+If you see an invalid IAM role error during `terraform apply`, it is usually a known IAM propagation delay issue. The Terraform configuration includes a fix by adding a 15-second delay before endpoint creation so the IAM role fully propagates.
 
-Si continúas con problemas:
-1. Ejecuta `terraform destroy` para limpiar
-2. Espera un minuto para la propagación completa de IAM
-3. Ejecuta `terraform apply` de nuevo
+If issues continue:
+1. Run `terraform destroy` to clean up
+2. Wait one minute for full IAM propagation
+3. Run `terraform apply` again
 
-El mensaje de error puede ser confuso: a menudo indica límites de cuota o delay de propagación en vez de un error real de IAM.
+The error message can be misleading: it may indicate quota limits or propagation delays instead of a real IAM permission problem.
 
-## Eliminación (opcional)
+## Cleanup (optional)
 
-Si necesitas borrar sólo la infraestructura de SageMaker:
+If you need to delete only the SageMaker infrastructure:
 
 ```bash
 cd terraform/2_sagemaker
 terraform destroy
 ```
 
-⚠️ Esto solo eliminará los recursos de SageMaker de esta guía, ¡no otras partes!
+⚠️ This only removes SageMaker resources from this guide, not other parts.
 
-## Siguientes pasos
+## Next steps
 
-¡Felicidades! Has desplegado un modelo de ML listo para producción en AWS.
+Congratulations! You deployed a production-ready ML model on AWS.
 
-En la próxima guía:
-1. Configuraremos S3 Vectors para almacenamiento vectorial rentable (¡90% más barato!)
-2. Crearemos una función Lambda para conectar todo
-3. Construiremos una API para ingerir conocimiento financiero
+In the next guide:
+1. We will configure S3 Vectors for cost-effective vector storage (90% cheaper)
+2. We will create a Lambda function to connect everything
+3. We will build an API to ingest financial knowledge
 
-Tu endpoint de SageMaker está listo y esperando. ¡Continuemos construyendo Alex! 🎉
+Your SageMaker endpoint is ready and waiting. Let's continue building Alex! 🎉
 
-Continúa en: [3_ingest.md](3_ingest.md)
+Continue to: [3_ingest.md](3_ingest.md)

@@ -1,32 +1,32 @@
-# Arquitectura de Agentes Alex
+# Alex Agent Architecture
 
-Este documento ilustra cómo los agentes de IA en la plataforma Alex colaboran para proporcionar planificación financiera integral y análisis de portafolios.
+This document illustrates how AI agents on the Alex platform collaborate to provide comprehensive financial planning and portfolio analysis.
 
-## Resumen de la Colaboración entre Agentes
+## Agent Collaboration Overview
 
 ```mermaid
 graph TB
-    User[Solicitud del Usuario] -->|Análisis de Portafolio| Planner[Financial Planner<br/>Agente Orquestador]
+    User[User Request] -->|Portfolio Analysis| Planner[Financial Planner<br/>Orchestrator Agent]
     
-    Planner -->|Verificar Instrumentos| Tagger[InstrumentTagger<br/>Agente]
-    Tagger -->|Clasificar Activos| DB[(Base de Datos)]
+    Planner -->|Check Instruments| Tagger[InstrumentTagger<br/>Agent]
+    Tagger -->|Classify Assets| DB[(Database)]
     
-    Planner -->|Generar Análisis| Reporter[Report Writer<br/>Agente]
-    Reporter -->|Reportes Markdown| DB
+    Planner -->|Generate Analysis| Reporter[Report Writer<br/>Agent]
+    Reporter -->|Markdown Reports| DB
     
-    Planner -->|Crear Visualizaciones| Charter[Chart Maker<br/>Agente]
-    Charter -->|Datos de Gráfico JSON| DB
+    Planner -->|Create Visualizations| Charter[Chart Maker<br/>Agent]
+    Charter -->|JSON Chart Data| DB
     
-    Planner -->|Proyectar Futuro| Retirement[Retirement Specialist<br/>Agente]
-    Retirement -->|Proyecciones de Ingreso| DB
+    Planner -->|Project Future| Retirement[Retirement Specialist<br/>Agent]
+    Retirement -->|Income Projections| DB
     
-    DB -->|Resultados| Response[Análisis Completo<br/>Reporte]
+    DB -->|Results| Response[Complete Analysis<br/>Report]
     
-    Planner -->|Recuperar Contexto| Vectors[(S3 Vectors<br/>Base de Conocimiento)]
+    Planner -->|Retrieve Context| Vectors[(S3 Vectors<br/>Knowledge Base)]
     
-    Schedule[EventBridge<br/>Cada 2 Horas] -->|Disparar| Researcher[Researcher<br/>Agente]
-    Researcher -->|Guardar Insights| Vectors
-    Researcher -->|Investigación Web| Browser[Navegador Web<br/>Servidor MCP]
+    Schedule[EventBridge<br/>Every 2 Hours] -->|Trigger| Researcher[Researcher<br/>Agent]
+    Researcher -->|Store Insights| Vectors
+    Researcher -->|Web Research| Browser[Web Browser<br/>MCP Server]
     
     style Planner fill:#FFD700,stroke:#333,stroke-width:3px
     style Researcher fill:#87CEEB
@@ -37,130 +37,130 @@ graph TB
     style Retirement fill:#FFB6C1
 ```
 
-## Responsabilidades de los Agentes
+## Agent Responsibilities
 
-### Financial Planner (Orquestador)
-**Rol**: Coordinador principal que gestiona todo el flujo de trabajo del análisis
-- Recibe solicitudes de los usuarios para el análisis de portafolios
-- Identifica datos faltantes de instrumentos y delega a InstrumentTagger
-- Coordina todos los agentes especializados
-- Recupera contexto relevante desde la base de conocimiento S3 Vectors
-- Compila el análisis final a partir de la salida de todos los agentes
-- Actualiza el estado de los trabajos durante el proceso
+### Financial Planner (Orchestrator)
+**Role**: Main coordinator that manages the full analysis workflow
+- Receives user requests for portfolio analysis
+- Identifies missing instrument data and delegates to InstrumentTagger
+- Coordinates all specialized agents
+- Retrieves relevant context from the S3 Vectors knowledge base
+- Compiles final analysis from all agent outputs
+- Updates job status during processing
 
 ### InstrumentTagger
-**Rol**: Población automática de datos de referencia para instrumentos financieros
-- Clasifica instrumentos por clase de activo (acciones, renta fija, etc.)
-- Determina asignación regional (Norteamérica, Europa, Asia, etc.)
-- Identifica la exposición sectorial (tecnología, salud, finanzas, etc.)
-- Usa salidas estructuradas para un formato de datos consistente
-- Futuro: Se integrará con la API de Polygon para datos de mercado en tiempo real
+**Role**: Automated reference data population for financial instruments
+- Classifies instruments by asset class (equities, fixed income, etc.)
+- Determines regional allocation (North America, Europe, Asia, etc.)
+- Identifies sector exposure (technology, healthcare, finance, etc.)
+- Uses structured outputs for consistent data formatting
+- Future: Integration with Polygon API for real-time market data
 
-### Researcher (Agente Independiente)
-**Rol**: Recopilación autónoma de inteligencia de mercado y conocimientos de inversión
-- Opera independientemente en el horario de EventBridge (cada 2 horas)
-- No es orquestado por el Financial Planner - funciona de manera autónoma
-- Navega sitios de finanzas en busca de tendencias de mercado actualizadas
-- Analiza noticias empresariales e informes de resultados
-- Investiga indicadores económicos y condiciones de mercado
-- Genera insights y recomendaciones de inversión
-- Población continua de la base S3 Vectors
-- El Financial Planner recupera este conocimiento luego para contexto
+### Researcher (Independent Agent)
+**Role**: Autonomous collection of market intelligence and investment insights
+- Operates independently on EventBridge schedule (every 2 hours)
+- Not orchestrated by Financial Planner - runs autonomously
+- Browses financial websites for updated market trends
+- Analyzes company news and earnings reports
+- Researches economic indicators and market conditions
+- Generates investment insights and recommendations
+- Continuous population of S3 Vectors base
+- Financial Planner later retrieves this knowledge for context
 
 ### Report Writer
-**Rol**: Generar narrativas de análisis de portafolios completas
-- Analiza composición y diversificación de portafolios
-- Evalúa la exposición al riesgo y la asignación de activos
-- Genera resúmenes ejecutivos en formato markdown
-- Crea secciones de análisis detallado
-- Proporciona recomendaciones accionables
-- Escribe en lenguaje financiero profesional y claro
+**Role**: Generate comprehensive portfolio analysis narratives
+- Analyzes portfolio composition and diversification
+- Evaluates risk exposure and asset allocation
+- Generates executive summaries in markdown format
+- Creates detailed analysis sections
+- Provides actionable recommendations
+- Writes in clear, professional financial language
 
 ### Chart Maker
-**Rol**: Transformar los datos del portafolio en visualizaciones
-- Calcula porcentajes de asignación en diferentes dimensiones
-- Crea gráficos de sectores para distribución por clase de activo
-- Genera gráficos de barras para exposición regional
-- Produce visualizaciones de asignación sectorial
-- Da formato a los datos para componentes Recharts
-- Asegura que todos los porcentajes sumen 100%
+**Role**: Transform portfolio data into visualizations
+- Calculates allocation percentages across dimensions
+- Creates pie charts for asset class distribution
+- Generates bar charts for regional exposure
+- Produces sector allocation visualizations
+- Formats data for Recharts components
+- Ensures all percentages sum to 100%
 
 ### Retirement Specialist
-**Rol**: Proyectar resultados financieros a largo plazo
-- Calcula los ingresos de jubilación proyectados
-- Ejecuta simulaciones Monte Carlo para análisis de probabilidades
-- Considera años hasta la jubilación e ingresos objetivo
-- Crea gráficos de proyección de ingresos en el tiempo
-- Analiza sostenibilidad del portafolio
-- Proporciona recomendaciones para preparación de la jubilación
+**Role**: Project long-term financial outcomes
+- Calculates projected retirement income
+- Runs Monte Carlo simulations for probability analysis
+- Considers years to retirement and target income
+- Creates income projection charts over time
+- Analyzes portfolio sustainability
+- Provides retirement readiness recommendations
 
-## Flujo de Comunicación entre Agentes
+## Agent Communication Flow
 
 ```mermaid
 sequenceDiagram
     participant S as EventBridge Schedule
     participant Re as Researcher
     participant V as S3 Vectors
-    participant U as Usuario
+    participant U as User
     participant P as Financial Planner
     participant T as InstrumentTagger
     participant Rw as Report Writer
     participant C as Chart Maker
     participant Rt as Retirement Specialist
-    participant DB as Base de Datos
+    participant DB as Database
     
-    Note over S,Re: Flujo de Investigación Independiente (Cada 2 Horas)
-    S->>Re: Disparar investigación programada
-    Re->>V: Guardar insights de mercado
+    Note over S,Re: Independent Research Flow (Every 2 Hours)
+    S->>Re: Trigger scheduled research
+    Re->>V: Store market insights
     
-    Note over U,DB: Flujo de Análisis Solicitado por Usuario
-    U->>P: Solicitar Análisis de Portafolio
-    P->>DB: Verificar datos de instrumentos faltantes
+    Note over U,DB: User-Requested Analysis Flow
+    U->>P: Request Portfolio Analysis
+    P->>DB: Check for missing instrument data
     
-    alt Datos de Instrumento Faltantes
-        P->>T: Etiquetar instrumentos desconocidos
-        T->>DB: Guardar clasificaciones
+    alt Missing Instrument Data
+        P->>T: Tag unknown instruments
+        T->>DB: Store classifications
     end
     
-    P->>V: Recuperar investigación relevante
-    Note right of P: Usa investigación previamente<br/>almacenada por Researcher
+    P->>V: Retrieve relevant research
+    Note right of P: Uses research previously<br/>stored by Researcher
     
-    par Análisis Paralelo
-        P->>Rw: Generar informe de portafolio
-        Rw->>DB: Guardar análisis
+    par Parallel Analysis
+        P->>Rw: Generate portfolio report
+        Rw->>DB: Store analysis
     and
-        P->>C: Crear visualizaciones
-        C->>DB: Guardar datos de gráfico
+        P->>C: Create visualizations
+        C->>DB: Store chart data
     and
-        P->>Rt: Calcular proyecciones
-        Rt->>DB: Guardar análisis de jubilación
+        P->>Rt: Calculate projections
+        Rt->>DB: Store retirement analysis
     end
     
-    P->>DB: Compilar todos los resultados
-    P->>U: Retornar análisis completo
+    P->>DB: Compile all results
+    P->>U: Return complete analysis
 ```
 
-## Flujo de Datos
+## Data Flow
 
 ```mermaid
 graph LR
     subgraph Input
-        Portfolio[Datos del Portafolio]
-        Instruments[Símbolos de Instrumentos]
-        Goals[Metas de Jubilación]
+        Portfolio[Portfolio Data]
+        Instruments[Instrument Symbols]
+        Goals[Retirement Goals]
     end
     
     subgraph Processing
-        Analysis[Motor de Análisis]
-        Knowledge[Base de Conocimiento]
-        Market[Datos de Mercado]
+        Analysis[Analysis Engine]
+        Knowledge[Knowledge Base]
+        Market[Market Data]
     end
     
     subgraph Output
-        Report[Informe Escrito]
-        Charts[Visualizaciones]
-        Projections[Proyecciones de Jubilación]
-        Recommendations[Acciones Sugeridas]
+        Report[Written Report]
+        Charts[Visualizations]
+        Projections[Retirement Projections]
+        Recommendations[Suggested Actions]
     end
     
     Portfolio --> Analysis
@@ -176,79 +176,79 @@ graph LR
     Analysis --> Recommendations
 ```
 
-## Matriz de Capacidades de los Agentes
+## Agent Capability Matrix
 
-| Agente | Modelo AI | Función Principal | Formato de Salida | Tiempo de Ejecución |
+| Agent | AI Model | Main Function | Output Format | Execution Time |
 |--------|-----------|-------------------|-------------------|---------------------|
-| Financial Planner | Claude 4 Sonnet | Orquestación y Coordinación | Estado del Trabajo | 2-3 minutos |
-| InstrumentTagger | Claude 4 Sonnet | Clasificación de Activos | JSON Estructurado | 5-10 segundos |
-| Researcher | Claude 4 Sonnet | Inteligencia de Mercado | Artículos Markdown | 30-60 segundos |
-| Report Writer | Claude 4 Sonnet | Narrativa de Portafolio | Informe Markdown | 20-30 segundos |
-| Chart Maker | Claude 4 Sonnet | Visualización de Datos | Recharts JSON | 10-15 segundos |
-| Retirement Specialist | Claude 4 Sonnet | Proyecciones Futuras | Análisis + Gráficos | 20-30 segundos |
+| Financial Planner | Claude 4 Sonnet | Orchestration and Coordination | Job Status | 2-3 minutes |
+| InstrumentTagger | Claude 4 Sonnet | Asset Classification | Structured JSON | 5-10 seconds |
+| Researcher | Claude 4 Sonnet | Market Intelligence | Markdown Articles | 30-60 seconds |
+| Report Writer | Claude 4 Sonnet | Portfolio Narrative | Markdown Report | 20-30 seconds |
+| Chart Maker | Claude 4 Sonnet | Data Visualization | Recharts JSON | 10-15 seconds |
+| Retirement Specialist | Claude 4 Sonnet | Future Projections | Analysis + Charts | 20-30 seconds |
 
-## Integración de Conocimiento
+## Knowledge Integration
 
-Los agentes aprovechan dos fuentes principales de conocimiento:
+Agents leverage two main knowledge sources:
 
 ### S3 Vectors Knowledge Base
-- Investigación histórica e insights de mercado
-- Análisis de empresas e informes de resultados
-- Indicadores económicos y tendencias
-- Estrategias de inversión y recomendaciones
-- Se actualiza continuamente por el agente Researcher
+- Historical research and market insights
+- Company analysis and earnings reports
+- Economic indicators and trends
+- Investment strategies and recommendations
+- Continuously updated by the Researcher agent
 
-### Base de Datos de Referencia
-- Clasificaciones y asignaciones de instrumentos
-- Portafolios y preferencias de usuarios
-- Informes e históricos de análisis
-- Cálculos y proyecciones en caché
+### Reference Database
+- Instrument classifications and allocations
+- User portfolios and preferences
+- Analysis reports and history
+- Cached calculations and projections
 
-## Patrones de Colaboración de los Agentes
+## Agent Collaboration Patterns
 
-### 1. Patrón de Enriquecimiento de Datos
+### 1. Data Enrichment Pattern
 ```
-Instrumento Desconocido → InstrumentTagger → Datos Enriquecidos → Otros Agentes
-```
-
-### 2. Patrón de Investigación Independiente
-```
-EventBridge (Cada 2 horas) → Researcher → S3 Vectors → Crecimiento de la Base de Conocimiento
+Unknown Instrument -> InstrumentTagger -> Enriched Data -> Other Agents
 ```
 
-### 3. Patrón de Integración de Conocimiento
+### 2. Independent Research Pattern
 ```
-Financial Planner → Recuperar de S3 Vectors → Análisis Contextualizado
-```
-
-### 4. Patrón de Procesamiento Paralelo
-```
-Financial Planner → [Report Writer, Chart Maker, Retirement] → Resultados Compilados
+EventBridge (Every 2 hours) -> Researcher -> S3 Vectors -> Knowledge Base Growth
 ```
 
-### 5. Patrón de Aprendizaje Continuo
+### 3. Knowledge Integration Pattern
 ```
-Researcher (Autónomo) → Acumulación de Conocimiento → Mejor Análisis con el Tiempo
+Financial Planner -> Retrieve from S3 Vectors -> Contextualized Analysis
 ```
 
-## Principios Clave de Diseño
+### 4. Parallel Processing Pattern
+```
+Financial Planner -> [Report Writer, Chart Maker, Retirement] -> Compiled Results
+```
 
-1. **Especialización**: Cada agente tiene una responsabilidad enfocada
-2. **Orquestación**: El Financial Planner coordina pero no microgestiona
-3. **Ejecución Paralela**: Agentes independientes corren en simultáneo para mayor velocidad
-4. **Compartir Conocimiento**: S3 Vectors permite inteligencia colectiva
-5. **Degradación Elegante**: El sistema funciona aunque algunos agentes fallen
-6. **Mejora Incremental**: Se pueden añadir nuevos agentes sin interrumpir los existentes
+### 5. Continuous Learning Pattern
+```
+Researcher (Autonomous) -> Knowledge Accumulation -> Better Analysis Over Time
+```
 
-## Mejoras Futuras de los Agentes
+## Key Design Principles
 
-### Agentes Planeados
-- **Tax Optimizer**: Analizar implicaciones y estrategias fiscales
-- **Rebalancer**: Sugerir acciones de rebalanceo de portafolio
-- **Risk Analyzer**: Análisis detallado de métricas de riesgo de portafolio
+1. **Specialization**: Each agent has a focused responsibility
+2. **Orchestration**: Financial Planner coordinates but does not micromanage
+3. **Parallel Execution**: Independent agents run simultaneously for speed
+4. **Knowledge Sharing**: S3 Vectors enables collective intelligence
+5. **Graceful Degradation**: System continues working even if some agents fail
+6. **Incremental Improvement**: New agents can be added without disrupting existing ones
 
-### Capacidades Planeadas
-- Integración de datos de mercado en tiempo real (API de Polygon)
-- Análisis de estrategias con opciones
-- Cobertura de mercados internacionales
-- Evaluación ESG (Environmental, Social, Governance)
+## Future Agent Enhancements
+
+### Planned Agents
+- **Tax Optimizer**: Analyze tax implications and strategies
+- **Rebalancer**: Suggest portfolio rebalancing actions
+- **Risk Analyzer**: Detailed analysis of portfolio risk metrics
+
+### Planned Capabilities
+- Real-time market data integration (Polygon API)
+- Options strategy analysis
+- International market coverage
+- ESG evaluation (Environmental, Social, Governance)

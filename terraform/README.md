@@ -1,110 +1,110 @@
-# Infraestructura de Terraform
+# Terraform Infrastructure
 
-Este directorio contiene las configuraciones de Terraform para el proyecto Alex Financial Planner.
+This directory contains the Terraform configurations for the Alex Financial Planner project.
 
-## Estructura
+## Structure
 
-Cada parte del curso tiene su propio directorio independiente de Terraform:
+Each part of the course has its own independent Terraform directory:
 
-- **`2_sagemaker/`** - Endpoint serverless de SageMaker para embeddings (Guía 2)
-- **`3_ingestion/`** - S3 Vectors, Lambda y API Gateway para la ingestión de documentos (Guía 3)
-- **`4_researcher/`** - Servicio App Runner para el agente investigador de IA (Guía 4)
-- **`5_database/`** - Aurora Serverless v2 PostgreSQL con Data API (Guía 5)
-- **`6_agents/`** - Funciones Lambda para la orquesta de agentes (Guía 6)
-- **`7_frontend/`** - Lambda API y la infraestructura del frontend (Guía 7)
-- **`8_observability/`** - Configuración de LangFuse y monitorización (Guía 8)
+- **`2_sagemaker/`** - SageMaker serverless endpoint for embeddings (Guide 2)
+- **`3_ingestion/`** - S3 Vectors, Lambda, and API Gateway for document ingestion (Guide 3)
+- **`4_researcher/`** - App Runner service for the AI researcher agent (Guide 4)
+- **`5_database/`** - Aurora Serverless v2 PostgreSQL with Data API (Guide 5)
+- **`6_agents/`** - Lambda functions for the agent orchestrator (Guide 6)
+- **`7_frontend/`** - API Lambda and frontend infrastructure (Guide 7)
+- **`8_observability/`** - LangFuse and monitoring setup (Guide 8)
 
-## Decisiones Clave de Diseño
+## Key Design Decisions
 
-### ¿Por qué directorios separados?
+### Why separate directories?
 
-1. **Claridad educativa**: Cada guía corresponde exactamente a un directorio de Terraform
-2. **Despliegue independiente**: Los estudiantes pueden desplegar cada parte sin afectar las demás
-3. **Reducción de riesgo**: Errores en una parte no afectan la infraestructura desplegada anteriormente
-4. **Aprendizaje progresivo**: No se pueden desplegar partes posteriores accidentalmente antes de completar las anteriores
+1. **Educational clarity**: Each guide maps exactly to one Terraform directory
+2. **Independent deployment**: Students can deploy each part without affecting the others
+3. **Risk reduction**: Errors in one part do not impact previously deployed infrastructure
+4. **Progressive learning**: Later parts cannot be accidentally deployed before completing earlier ones
 
-### ¿Por qué estado local?
+### Why local state?
 
-1. **Simplicidad**: No es necesario configurar ni gestionar un bucket S3 para el estado
-2. **Cero dependencias**: Se puede comenzar a desplegar inmediatamente sin infraestructura previa
-3. **Ahorro de costes**: No hay costes de almacenamiento S3 para los archivos de estado
-4. **Seguridad**: Los archivos de estado están automáticamente en el .gitignore
+1. **Simplicity**: No need to configure or manage an S3 bucket for state
+2. **Zero dependencies**: You can start deploying immediately with no prior infrastructure
+3. **Cost savings**: No S3 storage costs for state files
+4. **Security**: State files are automatically listed in `.gitignore`
 
-## Uso
+## Usage
 
-Para cada parte del curso:
+For each part of the course:
 
 ```bash
-# Navega al directorio específico de la parte
-cd terraform/2_sagemaker  # (o 3_ingestion, 4_researcher, etc.)
+# Navigate to the specific part directory
+cd terraform/2_sagemaker  # (or 3_ingestion, 4_researcher, etc.)
 
-# Inicializa Terraform (solo es necesario una vez por directorio)
+# Initialize Terraform (only required once per directory)
 terraform init
 
-# Revisa lo que será creado
+# Review what will be created
 terraform plan
 
-# Despliega la infraestructura
+# Deploy infrastructure
 terraform apply
 
-# Cuando termines con esa parte (opcional)
+# When you finish with that part (optional)
 terraform destroy
 ```
 
-## Variables de Entorno
+## Environment Variables
 
-Algunas configuraciones de Terraform requieren variables de entorno desde tu archivo `.env`:
+Some Terraform configurations require environment variables from your `.env` file:
 
-- `OPENAI_API_KEY` - Para el agente investigador (Parte 4)
-- `ALEX_API_ENDPOINT` - Endpoint de API Gateway (de la Parte 3)
-- `ALEX_API_KEY` - Clave de API para ingestión (de la Parte 3)
-- `AURORA_CLUSTER_ARN` - ARN del clúster Aurora (de la Parte 5)
-- `AURORA_SECRET_ARN` - ARN de Secrets Manager (de la Parte 5)
-- `VECTOR_BUCKET` - Nombre del bucket S3 Vectors (de la Parte 3)
-- `BEDROCK_MODEL_ID` - Modelo Bedrock a utilizar (Parte 6)
+- `OPENAI_API_KEY` - For the researcher agent (Part 4)
+- `ALEX_API_ENDPOINT` - API Gateway endpoint (from Part 3)
+- `ALEX_API_KEY` - API key for ingestion (from Part 3)
+- `AURORA_CLUSTER_ARN` - Aurora cluster ARN (from Part 5)
+- `AURORA_SECRET_ARN` - Secrets Manager ARN (from Part 5)
+- `VECTOR_BUCKET` - S3 Vectors bucket name (from Part 3)
+- `BEDROCK_MODEL_ID` - Bedrock model to use (Part 6)
 
-## Gestión del Estado
+## State Management
 
-- Cada directorio mantiene su propio archivo `terraform.tfstate`
-- Los archivos de estado se almacenan localmente (no en S3)
-- Todos los archivos `*.tfstate` están en el .gitignore por seguridad
-- Haz una copia de seguridad de los archivos de estado antes de realizar cambios importantes
+- Each directory maintains its own `terraform.tfstate` file
+- State files are stored locally (not in S3)
+- All `*.tfstate` files are listed in `.gitignore` for security
+- Back up state files before making major changes
 
-## Consideraciones para Producción
+## Production Considerations
 
-Esta estructura está optimizada para el aprendizaje. En producción, podrías considerar:
+This structure is optimized for learning. In production, you might consider:
 
-- **Estado remoto**: Almacenar el estado en S3 con locking de estado vía DynamoDB
-- **Módulos**: Compartir configuraciones comunes entre entornos
-- **Workspaces**: Gestionar múltiples entornos (dev, staging, prod)
-- **CI/CD**: Pipelines de despliegue automatizados
-- **Terragrunt**: Orquestar múltiples configuraciones de Terraform
+- **Remote state**: Store state in S3 with state locking via DynamoDB
+- **Modules**: Share common configuration across environments
+- **Workspaces**: Manage multiple environments (dev, staging, prod)
+- **CI/CD**: Automated deployment pipelines
+- **Terragrunt**: Orchestrate multiple Terraform configurations
 
-## Resolución de Problemas
+## Troubleshooting
 
-Si encuentras problemas:
+If you run into issues:
 
-1. **Conflictos de estado**: Cada directorio tiene estado independiente. Si necesitas importar recursos existentes:
+1. **State conflicts**: Each directory has independent state. If you need to import existing resources:
    ```bash
    terraform import <resource_type>.<resource_name> <resource_id>
    ```
 
-2. **Dependencias faltantes**: Asegúrate de haber completado las guías anteriores y tener las variables de entorno requeridas
+2. **Missing dependencies**: Make sure you completed previous guides and have the required environment variables
 
-3. **Comenzar de cero**: Para reiniciar en cualquier directorio:
+3. **Start from scratch**: To reset any directory:
    ```bash
-   terraform destroy  # Eliminar recursos
-   rm -rf .terraform terraform.tfstate*  # Limpiar archivos locales
-   terraform init  # Re-inicializar
+   terraform destroy  # Remove resources
+   rm -rf .terraform terraform.tfstate*  # Clean local files
+   terraform init  # Re-initialize
    ```
 
-## Asistente de Limpieza
+## Cleanup Helper
 
-Para limpiar archivos antiguos monolíticos de Terraform (si actualizas desde una versión anterior):
+To clean old monolithic Terraform files (if upgrading from a previous version):
 
 ```bash
 cd terraform
 python cleanup_old_structure.py
 ```
 
-Esto identificará archivos antiguos que pueden eliminarse de forma segura.
+This identifies old files that can be safely removed.

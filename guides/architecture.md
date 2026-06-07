@@ -1,42 +1,42 @@
-# Resumen de la Arquitectura de Alex (Versión S3 Vectors)
+# Alex Architecture Overview (S3 Vectors Version)
 
-## Arquitectura del Sistema
+## System Architecture
 
-La plataforma Alex usa una arquitectura moderna serverless en AWS, combinando servicios de IA con infraestructura rentable:
+The Alex platform uses a modern serverless architecture on AWS, combining AI services with cost-effective infrastructure:
 
 ```mermaid
 graph TB
     %% API Gateway
-    APIGW[fa:fa-shield-alt API Gateway<br/>API REST<br/>Autenticación con API Key]
+    APIGW[fa:fa-shield-alt API Gateway<br/>REST API<br/>API Key Authentication]
     
     %% Backend Services
-    Lambda[fa:fa-bolt Lambda<br/>alex-ingest<br/>Procesamiento de Documentos]
-    AppRunner[fa:fa-server App Runner<br/>alex-researcher<br/>Servicio de Agente IA]
+    Lambda[fa:fa-bolt Lambda<br/>alex-ingest<br/>Document Processing]
+    AppRunner[fa:fa-server App Runner<br/>alex-researcher<br/>AI Agent Service]
     
     %% Scheduler Components
-    EventBridge[fa:fa-clock EventBridge<br/>Programador<br/>Cada 2 horas]
-    SchedulerLambda[fa:fa-bolt Lambda<br/>alex-scheduler<br/>Disparar Investigación]
+    EventBridge[fa:fa-clock EventBridge<br/>Scheduler<br/>Every 2 hours]
+    SchedulerLambda[fa:fa-bolt Lambda<br/>alex-scheduler<br/>Trigger Research]
     
     %% AI Services
-    SageMaker[fa:fa-brain SageMaker<br/>Modelo de Embedding<br/>all-MiniLM-L6-v2]
-    Bedrock[fa:fa-robot AWS Bedrock<br/>Modelo OSS 120B<br/>us-west-2]
+    SageMaker[fa:fa-brain SageMaker<br/>Embedding Model<br/>all-MiniLM-L6-v2]
+    Bedrock[fa:fa-robot AWS Bedrock<br/>OSS 120B Model<br/>us-west-2]
     
     %% Data Storage
-    S3Vectors[fa:fa-database S3 Vectors<br/>Almacenamiento de Vectores<br/>¡90% Reducción de Costos!]
-    ECR[fa:fa-archive ECR<br/>Registro Docker<br/>Imágenes de Researcher]
+    S3Vectors[fa:fa-database S3 Vectors<br/>Vector Storage<br/>90% Cost Reduction!]
+    ECR[fa:fa-archive ECR<br/>Docker Registry<br/>Researcher Images]
     
     %% Connections
-    AppRunner -->|Guardar Investigación| APIGW
-    AppRunner -->|Generar| Bedrock
-    APIGW -->|Invocar| Lambda
+    AppRunner -->|Store Research| APIGW
+    AppRunner -->|Generate| Bedrock
+    APIGW -->|Invoke| Lambda
     
-    EventBridge -->|Cada 2 horas| SchedulerLambda
-    SchedulerLambda -->|Llamada /research/auto| AppRunner
+    EventBridge -->|Every 2 hours| SchedulerLambda
+    SchedulerLambda -->|Call /research/auto| AppRunner
     
-    Lambda -->|Obtener Embeddings| SageMaker
-    Lambda -->|Guardar Vectores| S3Vectors
+    Lambda -->|Get Embeddings| SageMaker
+    Lambda -->|Store Vectors| S3Vectors
     
-    AppRunner -.->|Obtener Imagen| ECR
+    AppRunner -.->|Pull Image| ECR
     
     %% Styling
     classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
@@ -52,144 +52,144 @@ graph TB
     class EventBridge scheduler
 ```
 
-## Detalles de Componentes
+## Component Details
 
-### 1. **S3 Vectors** (¡NUEVO! - 90% Reducción de Costos)
-- **Propósito**: Almacenamiento nativo de vectores en S3
-- **Características**: 
-  - Búsqueda de similitud en sub-segundo
-  - Optimización automática
-  - Sin cargos mínimos
-  - Escrituras fuertemente consistentes
-- **Costo**: ~$30/mes (vs ~$300/mes para OpenSearch)
-- **Escala**: Millones de vectores por índice
+### 1. **S3 Vectors** (NEW! - 90% Cost Reduction)
+- **Purpose**: Native vector storage in S3
+- **Features**:
+  - Sub-second similarity search
+  - Automatic optimization
+  - No minimum charges
+  - Strongly consistent writes
+- **Cost**: ~$30/month (vs ~$300/month for OpenSearch)
+- **Scale**: Millions of vectors per index
 
 ### 2. **API Gateway**
-- **Tipo**: API REST
-- **Auth**: Autenticación con API Key
+- **Type**: REST API
+- **Auth**: API key authentication
 - **Endpoints**: `/ingest` (POST)
-- **Propósito**: Acceso seguro a funciones Lambda
+- **Purpose**: Secure access to Lambda functions
 
-### 3. **Funciones Lambda**
-- **alex-ingest**: Procesa documentos y almacena embeddings
+### 3. **Lambda Functions**
+- **alex-ingest**: Processes documents and stores embeddings
   - Runtime: Python 3.13
-  - Memoria: 512MB
-  - Timeout: 30 segundos
-- **alex-scheduler**: Dispara investigación automática
+  - Memory: 512MB
+  - Timeout: 30 seconds
+- **alex-scheduler**: Triggers automatic research
   - Runtime: Python 3.11
-  - Memoria: 128MB
-  - Timeout: 150 segundos
+  - Memory: 128MB
+  - Timeout: 150 seconds
 
 ### 4. **App Runner**
-- **Servicio**: alex-researcher
-- **Propósito**: Hospeda el agente de investigación IA
-- **Recursos**: 1 vCPU, 2GB RAM
-- **Características**: Auto-escalado, endpoint HTTPS
+- **Service**: alex-researcher
+- **Purpose**: Hosts the AI research agent
+- **Resources**: 1 vCPU, 2GB RAM
+- **Features**: Auto scaling, HTTPS endpoint
 
 ### 5. **SageMaker Serverless**
-- **Modelo**: sentence-transformers/all-MiniLM-L6-v2
-- **Propósito**: Generar embeddings de 384 dimensiones
-- **Memoria**: 3GB
-- **Concurrencia**: 10 max
+- **Model**: sentence-transformers/all-MiniLM-L6-v2
+- **Purpose**: Generate 384-dimensional embeddings
+- **Memory**: 3GB
+- **Concurrency**: 10 max
 
 ### 6. **EventBridge Scheduler**
-- **Regla**: alex-research-schedule
-- **Horario**: Cada 2 horas
-- **Destino**: Lambda alex-scheduler
-- **Propósito**: Generación automática de investigación
+- **Rule**: alex-research-schedule
+- **Schedule**: Every 2 hours
+- **Target**: alex-scheduler Lambda
+- **Purpose**: Automatic research generation
 
 ### 7. **AWS Bedrock**
-- **Proveedor**: AWS Bedrock
-- **Modelo**: OpenAI OSS 120B (modelo open-weight)
-- **Región**: us-west-2 (modelo disponible sólo aquí)
-- **Propósito**: Generación y análisis de investigación
-- **Características**: Ventana de contexto de 128K, acceso entre regiones
+- **Provider**: AWS Bedrock
+- **Model**: OpenAI OSS 120B (open-weight model)
+- **Region**: us-west-2 (model available only here)
+- **Purpose**: Research generation and analysis
+- **Features**: 128K context window, cross-region access
 
-## Flujo de Datos
+## Data Flow
 
-1. **Flujo Manual de Investigación**:
+1. **Manual Research Flow**:
    ```
-   Usuario → App Runner → Bedrock (generar) → API Gateway → Lambda → S3 Vectors
-   ```
-
-2. **Flujo Automático de Investigación**:
-   ```
-   EventBridge (cada 2 hrs) → Lambda Scheduler → App Runner → Bedrock → API Gateway → Lambda → S3 Vectors
+   User -> App Runner -> Bedrock (generate) -> API Gateway -> Lambda -> S3 Vectors
    ```
 
-3. **Flujo de Ingesta Directa**:
+2. **Automatic Research Flow**:
    ```
-   Usuario → API Gateway → Lambda → SageMaker (embedding) → S3 Vectors
-   ```
-
-4. **Flujo de Búsqueda** (futuro):
-   ```
-   Usuario → API Gateway → Lambda → S3 Vectors (búsqueda por similitud)
+   EventBridge (every 2 hrs) -> Scheduler Lambda -> App Runner -> Bedrock -> API Gateway -> Lambda -> S3 Vectors
    ```
 
-## Optimización de Costos
+3. **Direct Ingestion Flow**:
+   ```
+   User -> API Gateway -> Lambda -> SageMaker (embedding) -> S3 Vectors
+   ```
 
-| Componente | Costo Mensual | Notas |
+4. **Search Flow** (future):
+   ```
+   User -> API Gateway -> Lambda -> S3 Vectors (similarity search)
+   ```
+
+## Cost Optimization
+
+| Component | Monthly Cost | Notes |
 |------------|---------------|-------|
-| S3 Vectors | ~$30 | ¡90% más barato que OpenSearch! |
-| SageMaker Serverless | ~$5-10 | Pago por petición |
-| Lambda | ~$1 | Invocaciones mínimas |
+| S3 Vectors | ~$30 | 90% cheaper than OpenSearch! |
+| SageMaker Serverless | ~$5-10 | Pay per request |
+| Lambda | ~$1 | Minimal invocations |
 | App Runner | ~$5 | 1 vCPU, 2GB RAM |
-| API Gateway | ~$1 | API REST |
-| **Total** | **~$42-47** | Antes ~$250+ |
+| API Gateway | ~$1 | REST API |
+| **Total** | **~$42-47** | Previously ~$250+ |
 
-## Funcionalidades de Seguridad
+## Security Features
 
-- **API Gateway**: Autenticación con API key
-- **IAM Roles**: Acceso con el menor privilegio necesario
-- **S3 Vectors**: Siempre privado (sin acceso público)
-- **App Runner**: HTTPS por defecto
-- **Secrets**: Variables de entorno para API keys
+- **API Gateway**: API key authentication
+- **IAM Roles**: Least-privilege access
+- **S3 Vectors**: Always private (no public access)
+- **App Runner**: HTTPS by default
+- **Secrets**: Environment variables for API keys
 
-## Arquitectura de Despliegue
+## Deployment Architecture
 
 ```mermaid
 graph LR
-    Dev[fa:fa-laptop Desarrollador]
-    GH[fa:fa-code-branch Repositorio GitHub]
+    Dev[fa:fa-laptop Developer]
+    GH[fa:fa-code-branch GitHub Repository]
     TF[fa:fa-cog Terraform]
     AWS[fa:fa-cloud AWS]
     
     Dev -->|Push| GH
     Dev -->|Run| TF
-    TF -->|Desplegar| AWS
+    TF -->|Deploy| AWS
     
-    subgraph Infraestructura AWS
+    subgraph AWS Infrastructure
         S3[S3 State]
-        Resources[Todos los Recursos]
+        Resources[All Resources]
     end
     
     TF -.->|State| S3
-    TF -->|Crear| Resources
+    TF -->|Create| Resources
 ```
 
-## Stack Tecnológico
+## Technology Stack
 
-- **Infraestructura**: Terraform
+- **Infrastructure**: Terraform
 - **Compute**: Lambda, App Runner
-- **IA/ML**: SageMaker, AWS Bedrock
-- **Almacenamiento**: S3 Vectors
+- **AI/ML**: SageMaker, AWS Bedrock
+- **Storage**: S3 Vectors
 - **API**: API Gateway
-- **Lenguajes**: Python 3.13
-- **Contenedor**: Docker
+- **Languages**: Python 3.13
+- **Container**: Docker
 
-## Ventajas Clave de S3 Vectors
+## Key Advantages of S3 Vectors
 
-1. **Costo**: Reducción del 90% vs bases de datos de vectores tradicionales
-2. **Simplicidad**: Solo S3 - sin infraestructura compleja
-3. **Escalabilidad**: Maneja millones de vectores
-4. **Rendimiento**: Consultas en sub-segundo
-5. **Integración**: Servicio nativo de AWS
+1. **Cost**: 90% reduction vs traditional vector databases
+2. **Simplicity**: Just S3 - no complex infrastructure
+3. **Scalability**: Handles millions of vectors
+4. **Performance**: Sub-second queries
+5. **Integration**: Native AWS service
 
-## Mejoras Futuras
+## Future Improvements
 
-- Aplicación frontend (Next.js)
-- Autenticación de usuario
-- Funciones avanzadas de búsqueda
-- Actualizaciones en tiempo real
-- Panel de análisis
+- Frontend application (Next.js)
+- User authentication
+- Advanced search features
+- Real-time updates
+- Analytics dashboard

@@ -1,48 +1,48 @@
-# Construyendo Alex: Parte 6 - Orquesta de Agentes IA
+# Building Alex: Part 6 - AI Agent Orchestra
 
-¡Bienvenido a la parte más emocionante de Alex! En esta guía, desplegarás un sofisticado sistema de IA multi-agente en el que agentes especializados colaboran para proporcionar un análisis financiero integral. Aquí es donde Alex realmente cobra vida como un asesor financiero inteligente.
+Welcome to the most exciting part of Alex! In this guide, you will deploy a sophisticated multi-agent AI system where specialized agents collaborate to provide comprehensive financial analysis. This is where Alex truly comes to life as an intelligent financial advisor.
 
-## RECORDATORIO - ¡CONSEJO IMPORTANTE!
+## REMINDER - IMPORTANT TIP!
 
-Hay un archivo `gameplan.md` en la raíz del proyecto que describe el proyecto Alex completo para un Agente de IA, para que puedas hacer preguntas y obtener ayuda. También existe un archivo idéntico `CLAUDE.md` y `AGENTS.md`. Si necesitas ayuda, simplemente inicia tu Agente de IA favorito y dale esta instrucción:
+There is a `gameplan.md` file in the project root that describes the complete Alex project for an AI Agent, so you can ask questions and get help. There is also an identical file `CLAUDE.md` and `AGENTS.md`. If you need help, simply start your favorite AI Agent and give it this instruction:
 
-> Soy estudiante en el curso AI in Production. Estamos en el repositorio del curso. Lee el archivo `gameplan.md` para un resumen del proyecto. Lee este archivo completo y todas las guías enlazadas cuidadosamente. No inicies ningún trabajo aparte de leer y comprobar la estructura de directorios. Cuando hayas terminado toda la lectura, dime si tienes preguntas antes de empezar.
+> I am a student in the AI in Production course. We are in the course repository. Read the `gameplan.md` file for a project summary. Read this file fully and all linked guides carefully. Do not start any work other than reading and checking the directory structure. When you finish all reading, tell me if you have questions before we start.
 
-Después de responder preguntas, di exactamente en qué guía estás y cualquier problema detectado. Ten cuidado de validar cada sugerencia; siempre pide la causa raíz y evidencia de los problemas. Los LLMs tienden a sacar conclusiones precipitadas, pero suelen corregirse cuando se les pide evidencia.
+After answering questions, state exactly which guide you are on and any detected issue. Be careful validating each suggestion; always ask for the root cause and evidence for problems. LLMs tend to jump to conclusions, but they often self-correct when asked for evidence.
 
-## ¿Qué vas a construir?
+## What will you build?
 
-Implementarás cinco agentes IA especializados que trabajan juntos:
+You will implement five specialized AI agents working together:
 
-1. **Planner** (Orquestador) - El director de nuestra orquesta de IA
-2. **Tagger** - Clasifica y etiqueta instrumentos financieros
-3. **Reporter** - Genera informes detallados de análisis de portafolio
-4. **Charter** - Crea visualizaciones de datos para tu portafolio
-5. **Retirement** - Proyecta escenarios de jubilación con simulaciones Monte Carlo
+1. **Planner** (Orchestrator) - The conductor of our AI orchestra
+2. **Tagger** - Classifies and tags financial instruments
+3. **Reporter** - Generates detailed portfolio analysis reports
+4. **Charter** - Creates data visualizations for your portfolio
+5. **Retirement** - Projects retirement scenarios with Monte Carlo simulations
 
-Así es como colaboran:
+Here is how they collaborate:
 
 ```mermaid
 graph TB
-    User[Solicitud de Usuario] -->|Iniciar Análisis| SQS[Cola SQS]
-    SQS -->|Mensaje| Planner[🎯 Planificador Financiero<br/>Orquestador]
-    
-    Planner -->|Auto-etiquetar datos faltantes| Tagger[🏷️ InstrumentTagger]
-    Tagger -->|Actualizar instrumentos| DB[(Aurora DB)]
-    
-    Planner -->|Delegar trabajo| Reporter[📝 Generador de Informes]
-    Planner -->|Delegar trabajo| Charter[📊 Generador de Gráficas]
-    Planner -->|Delegar trabajo| Retirement[🎯 Especialista en Jubilación]
-    
-    Reporter -->|Análisis Markdown| DB
-    Charter -->|Gráficas JSON| DB
-    Retirement -->|Proyecciones| DB
-    
-    Reporter -->|Acceso a conocimiento| S3V[(Vectores S3)]
-    
-    Planner -->|Finalizar| DB
-    DB -->|Resultados| User
-    
+    User[User Request] -->|Start Analysis| SQS[SQS Queue]
+    SQS -->|Message| Planner[🎯 Financial Planner<br/>Orchestrator]
+
+    Planner -->|Auto-tag missing data| Tagger[🏷️ InstrumentTagger]
+    Tagger -->|Update instruments| DB[(Aurora DB)]
+
+    Planner -->|Delegate work| Reporter[📝 Report Generator]
+    Planner -->|Delegate work| Charter[📊 Chart Generator]
+    Planner -->|Delegate work| Retirement[🎯 Retirement Specialist]
+
+    Reporter -->|Markdown analysis| DB
+    Charter -->|JSON charts| DB
+    Retirement -->|Projections| DB
+
+    Reporter -->|Knowledge access| S3V[(S3 Vectors)]
+
+    Planner -->|Finalize| DB
+    DB -->|Results| User
+
     style Planner fill:#FFD700
     style Reporter fill:#90EE90
     style Charter fill:#87CEEB
@@ -50,237 +50,237 @@ graph TB
     style Tagger fill:#FFB6C1
 ```
 
-## ¿Por qué usar una Arquitectura Multi-Agente?
+## Why use a multi-agent architecture?
 
-En vez de tener una gran IA que lo haga todo, usamos agentes especializados porque:
+Instead of one large AI that does everything, we use specialized agents because:
 
-1. **Especialización**: Cada agente sobresale en su tarea específica
-2. **Fiabilidad**: Prompts más pequeños y enfocados son más fiables
-3. **Procesamiento en paralelo**: Varios agentes pueden trabajar simultáneamente
-4. **Mantenibilidad**: Es sencillo actualizar agentes individuales sin afectar los demás
-5. **Eficiencia de costos**: Solo ejecutas los agentes que necesitas
+1. **Specialization**: Each agent excels at its specific task
+2. **Reliability**: Smaller, focused prompts are more reliable
+3. **Parallel processing**: Multiple agents can work simultaneously
+4. **Maintainability**: Easy to update individual agents without affecting others
+5. **Cost efficiency**: You only run the agents you need
 
-## Prerrequisitos
+## Prerequisites
 
-Antes de comenzar, asegúrate de tener:
-- Completadas las Guías 1-5 (toda la infraestructura desplegada)
-- AWS CLI configurado
-- Python con el gestor de paquetes `uv` instalado
-- Docker Desktop en ejecución
-- Acceso a los modelos AWS Bedrock en us-west-2
+Before you begin, make sure you have:
+- Completed Guides 1-5 (all infrastructure deployed)
+- AWS CLI configured
+- Python with the `uv` package manager installed
+- Docker Desktop running
+- Access to AWS Bedrock models in us-west-2
 
-## Antes de comenzar - Context Engineering
+## Before you begin - Context Engineering
 
-Lee este artículo fundamental de Philipp Schmid, Senior AI Relation Engineer en Google DeepMind:
+Read this foundational article by Philipp Schmid, Senior AI Relation Engineer at Google DeepMind:
 
 https://www.philschmid.de/context-engineering
 
-## Paso 0: Solicitar Acceso Adicional a Amazon Bedrock Model
+## Step 0: Request additional access to Amazon Bedrock model
 
-Nuestros agentes usan el modelo Nova Pro de Amazon para mayor fiabilidad. Asegúrate de tener acceso:
+Our agents use Amazon Nova Pro for higher reliability. Make sure you have access:
 
-1. Inicia sesión en la consola AWS
-2. Ve a **Amazon Bedrock**
-3. Cambia a la región **US West (Oregon) us-west-2**
-4. Haz clic en **Acceso a modelos** en la barra lateral izquierda
-5. Haz clic en **Administrar acceso a modelo**
-6. Busca la sección **Amazon**
-7. Marca la casilla para **Amazon Nova Pro**
-8. Haz clic en **Solicitar acceso a modelo**
-9. Espera la aprobación (normalmente es instantánea)
+1. Sign in to AWS Console
+2. Go to **Amazon Bedrock**
+3. Switch to region **US West (Oregon) us-west-2**
+4. Click **Model access** in the left sidebar
+5. Click **Manage model access**
+6. Find the **Amazon** section
+7. Check the box for **Amazon Nova Pro**
+8. Click **Request model access**
+9. Wait for approval (usually instant)
 
-**Nota**: Los agentes usarán este modelo cross-region desde tu región de despliegue.
+**Note**: Agents will use this model cross-region from your deployment region.
 
-## Paso 1: Configurar Variables de Entorno
+## Step 1: Configure environment variables
 
-Nuestros agentes requieren varias variables de entorno, incluyendo una API Key de Polygon para datos de mercado en tiempo real.
+Our agents require several environment variables, including a Polygon API key for real-time market data.
 
-### 1.1 Obtener clave API de Polygon (gratis)
+### 1.1 Get Polygon API key (free)
 
-El agente Planner obtiene precios de acciones en tiempo real usando Polygon.io. Consigue una clave API gratuita:
+The Planner agent fetches real-time stock prices using Polygon.io. Get a free API key:
 
-1. Ve a [polygon.io](https://polygon.io)
-2. Haz clic en **Get your Free API Key**
-3. Regístrate con tu correo (no se requiere tarjeta)
-4. Verifica tu correo electrónico
-5. Copia tu clave API desde el dashboard
+1. Go to [polygon.io](https://polygon.io)
+2. Click **Get your Free API Key**
+3. Sign up with your email (no card required)
+4. Verify your email
+5. Copy your API key from the dashboard
 
-El plan gratuito incluye:
-- 5 llamadas API por minuto
-- Datos de precios de cierre de día
-- Perfecto para desarrollo y pruebas
+The free plan includes:
+- 5 API calls per minute
+- End-of-day closing price data
+- Perfect for development and testing
 
-**Opcional**: Para producción, considera el plan Basic ($29/mes) para:
-- 100 llamadas API por minuto
-- Datos en tiempo real
-- Websocket streaming
+**Optional**: For production, consider the Basic plan ($29/month) for:
+- 100 API calls per minute
+- Real-time data
+- WebSocket streaming
 
-### 1.2 Configurar entorno del agente
+### 1.2 Configure agent environment
 
-Abre tu archivo `.env` en Cursor y añade estas líneas:
+Open your `.env` file in Cursor and add these lines:
 
 ```bash
-# Parte 6 - Configuración de Agentes
+# Part 6 - Agent Configuration
 BEDROCK_MODEL_ID=us.amazon.nova-pro-v1:0
 BEDROCK_REGION=us-west-2
-DEFAULT_AWS_REGION=us-east-1  # O tu región preferida
+DEFAULT_AWS_REGION=us-east-1  # Or your preferred region
 
-# API de Polygon.io para precios en tiempo real (regístrate gratis en polygon.io) - cambia a paid si tienes plan de pago
+# Polygon.io API for real-time prices (sign up free at polygon.io) - switch to paid if you have a paid plan
 POLYGON_API_KEY=your_polygon_api_key_here
 POLYGON_PLAN=free
 ```
 
-`BEDROCK_MODEL_ID` utiliza el modelo Nova Pro de Amazon, que tiene excelentes capacidades para llamar herramientas y límites altos de uso.
+`BEDROCK_MODEL_ID` uses Amazon Nova Pro, which has excellent tool-calling capabilities and high usage limits.
 
-## Paso 2: Explorar el Código de los Agentes
+## Step 2: Explore agent code
 
-Antes de probar, entendamos qué hace cada agente. Usa el explorador de archivos de Cursor y navega al directorio `backend`.
+Before testing, let us understand what each agent does. Use Cursor file explorer and navigate to the `backend` directory.
 
-### 2.1 InstrumentTagger (El más sencillo)
+### 2.1 InstrumentTagger (the simplest)
 
-**Directorio**: `backend/tagger`
+**Directory**: `backend/tagger`
 
-Abre `backend/tagger/agent.py` en Cursor. Este agente:
-- Usa salidas estructuradas (el único que lo hace)
-- Clasifica instrumentos financieros (ETFs, acciones)
-- Determina la asignación de activos (acciones, bonos, bienes raíces)
-- Identifica exposición geográfica
-- No necesita herramientas - solo clasificación
+Open `backend/tagger/agent.py` in Cursor. This agent:
+- Uses structured outputs (the only one that does)
+- Classifies financial instruments (ETFs, stocks)
+- Determines asset allocation (stocks, bonds, real estate)
+- Identifies geographic exposure
+- Does not need tools - classification only
 
-Abre `backend/tagger/templates.py` para ver el prompt que guía su análisis.
+Open `backend/tagger/templates.py` to see the prompt guiding its analysis.
 
-### 2.2 Agente Report Writer
+### 2.2 Report Writer agent
 
-**Directorio**: `backend/reporter`
+**Directory**: `backend/reporter`
 
-Abre `backend/reporter/agent.py`. Este agente:
-- Genera análisis completos de portafolios
-- Usa herramientas para acceder a S3 Vectors e información de mercado
-- Escribe reportes detallados en markdown
-- Identifica fortalezas y debilidades
+Open `backend/reporter/agent.py`. This agent:
+- Generates complete portfolio analysis
+- Uses tools to access S3 Vectors and market information
+- Writes detailed markdown reports
+- Identifies strengths and weaknesses
 
-Revisa `backend/reporter/templates.py` para su marco analítico.
+Review `backend/reporter/templates.py` for its analytical framework.
 
-### 2.3 Agente Chart Maker
+### 2.3 Chart Maker agent
 
-**Directorio**: `backend/charter`
+**Directory**: `backend/charter`
 
-Abre `backend/charter/agent.py`. Este agente:
-- Crea 4-6 gráficos diferentes
-- Escoge las visualizaciones apropiadas (pie, bar, donut)
-- Genera JSON compatible con Recharts
-- No usa herramientas - regresa JSON puro
+Open `backend/charter/agent.py`. This agent:
+- Creates 4-6 different charts
+- Chooses appropriate visualizations (pie, bar, donut)
+- Generates Recharts-compatible JSON
+- Uses no tools - returns pure JSON
 
-Revisa `backend/charter/templates.py` para ver las guías de visualización.
+Review `backend/charter/templates.py` for visualization guidance.
 
-### 2.4 Agente Retirement Specialist
+### 2.4 Retirement Specialist agent
 
-**Directorio**: `backend/retirement`
+**Directory**: `backend/retirement`
 
-Abre `backend/retirement/agent.py`. Este agente:
-- Ejecuta simulaciones Monte Carlo
-- Proyecta escenarios de jubilación
-- Calcula probabilidades de éxito
-- Usa herramientas para guardar proyecciones
+Open `backend/retirement/agent.py`. This agent:
+- Runs Monte Carlo simulations
+- Projects retirement scenarios
+- Calculates success probabilities
+- Uses tools to save projections
 
-Consulta `backend/retirement/templates.py` para la lógica de planificación de retiro.
+Check `backend/retirement/templates.py` for retirement-planning logic.
 
-### 2.5 Financial Planner (Orquestador)
+### 2.5 Financial Planner (orchestrator)
 
-**Directorio**: `backend/planner`
+**Directory**: `backend/planner`
 
-Abre `backend/planner/agent.py`. Este orquestador:
-- Recibe solicitudes de análisis mediante SQS
-- Auto-etiqueta datos de instrumentos faltantes
-- Decide qué agentes invocar
-- Coordina ejecución en paralelo
-- Finaliza los resultados
+Open `backend/planner/agent.py`. This orchestrator:
+- Receives analysis requests through SQS
+- Auto-tags missing instrument data
+- Decides which agents to invoke
+- Coordinates parallel execution
+- Finalizes results
 
-Mira `backend/planner/templates.py` para la lógica de orquestación.
+Look at `backend/planner/templates.py` for orchestration logic.
 
-## Paso 3: Probar los Agentes Localmente
+## Step 3: Test agents locally
 
-Probemos cada agente localmente, empezando por el más sencillo. Cada prueba usa datos simulados para verificar que el agente funciona correctamente.
+Let us test each agent locally, starting with the simplest. Each test uses mocked data to verify that the agent works correctly.
 
-### 3.1 Probar InstrumentTagger
+### 3.1 Test InstrumentTagger
 
-**En el directorio**: `backend/tagger`
-
-```bash
-uv run test_simple.py
-```
-
-**Salida esperada**: Verás que el agente clasifica VTI como un ETF. Verás "Tagged: 1 instruments" y "Updated: ['VTI']". La prueba termina rápido (5-10 segundos).
-
-### 3.2 Probar Report Writer
-
-**En el directorio**: `backend/reporter`
+**In directory**: `backend/tagger`
 
 ```bash
 uv run test_simple.py
 ```
 
-**Salida esperada**: Muestra "Success: 1" y "Message: Report generated and stored". El informe (más de 2800 caracteres) incluye análisis de portafolio, resumen ejecutivo, observaciones clave y recomendaciones. Tarda 15-20 segundos.
+**Expected output**: You will see the agent classify VTI as an ETF. You will see "Tagged: 1 instruments" and "Updated: ['VTI']". Test completes quickly (5-10 seconds).
 
-### 3.3 Probar Chart Maker
+### 3.2 Test Report Writer
 
-**En el directorio**: `backend/charter`
-
-```bash
-uv run test_simple.py
-```
-
-**Salida esperada**: Muestra "Success: True" y "Message: Generated 5 charts". Verás detalles de los gráficos, incluyendo las principales tenencias, asignación de activos, desglose por sectores y exposición geográfica. Cada gráfico tiene título, tipo (pie/bar/donut) y datos con colores. Tarda 10-15 segundos.
-
-### 3.4 Probar Retirement Specialist
-
-**En el directorio**: `backend/retirement`
+**In directory**: `backend/reporter`
 
 ```bash
 uv run test_simple.py
 ```
 
-**Salida esperada**: Muestra "Success: 1" y "Message: Retirement analysis completed". El análisis (más de 3900 caracteres) incluye resultados de simulaciones Monte Carlo con tasas de éxito, proyecciones de portafolio y recomendaciones específicas para mejorar la preparación para la jubilación. Tarda 10-15 segundos.
+**Expected output**: Shows "Success: 1" and "Message: Report generated and stored". The report (more than 2800 characters) includes portfolio analysis, executive summary, key findings, and recommendations. It takes 15-20 seconds.
 
-### 3.5 Probar Financial Planner
+### 3.3 Test Chart Maker
 
-**En el directorio**: `backend/planner`
-
-```bash
-uv run test_simple.py
-```
-
-**Salida esperada**: Muestra "Success: True" y "Message: Analysis completed for job [job-id]". El planificador coordina el análisis y responde rápido, ya que usa agentes simulados localmente. Tarda 5-10 segundos.
-
-### 3.6 Probar el Sistema Completo Localmente
-
-**En el directorio**: `backend`
+**In directory**: `backend/charter`
 
 ```bash
 uv run test_simple.py
 ```
 
-**Salida esperada**: Ejecuta todas las pruebas de agentes de forma secuencial. Verás un resumen "Passed: 5/5" con tildes para cada agente (tagger, reporter, charter, retirement, planner). Mensaje final: "✅ ALL TESTS PASSED!". Tarda de 60-90 segundos en total.
+**Expected output**: Shows "Success: True" and "Message: Generated 5 charts". You will see chart details including top holdings, asset allocation, sector breakdown, and geographic exposure. Each chart has title, type (pie/bar/donut), and colored data. It takes 10-15 seconds.
 
-## Paso 4: Empaquetar Funciones Lambda
+### 3.4 Test Retirement Specialist
 
-Ahora vamos a crear paquetes de despliegue para AWS Lambda. Cada agente necesita sus dependencias empaquetadas correctamente para Lambda.
+**In directory**: `backend/retirement`
 
-### 4.1 Empaquetar Todos los Agentes
+```bash
+uv run test_simple.py
+```
 
-**En el directorio**: `backend`
+**Expected output**: Shows "Success: 1" and "Message: Retirement analysis completed". The analysis (more than 3900 characters) includes Monte Carlo simulation results with success rates, portfolio projections, and specific recommendations to improve retirement readiness. It takes 10-15 seconds.
+
+### 3.5 Test Financial Planner
+
+**In directory**: `backend/planner`
+
+```bash
+uv run test_simple.py
+```
+
+**Expected output**: Shows "Success: True" and "Message: Analysis completed for job [job-id]". The planner coordinates analysis and responds quickly because it uses mocked local agents. It takes 5-10 seconds.
+
+### 3.6 Test full system locally
+
+**In directory**: `backend`
+
+```bash
+uv run test_simple.py
+```
+
+**Expected output**: Runs all agent tests sequentially. You will see a "Passed: 5/5" summary with checks for each agent (tagger, reporter, charter, retirement, planner). Final message: "✅ ALL TESTS PASSED!". Total runtime is 60-90 seconds.
+
+## Step 4: Package Lambda functions
+
+Now create deployment packages for AWS Lambda. Each agent needs dependencies packaged correctly for Lambda.
+
+### 4.1 Package all agents
+
+**In directory**: `backend`
 
 ```bash
 uv run package_docker.py
 ```
 
-Este script:
-1. Usa Docker para asegurar compatibilidad con Linux
-2. Empaqueta cada agente con sus dependencias
-3. Crea archivos zip para desplegar en Lambda
-4. Tarda 2-3 minutos en total
+This script:
+1. Uses Docker to ensure Linux compatibility
+2. Packages each agent with dependencies
+3. Creates zip files for Lambda deployment
+4. Takes 2-3 minutes total
 
-**Salida esperada**: 
+**Expected output**:
 ```
 Packaging tagger...
 ✅ Created tagger_lambda.zip (52 MB)
@@ -295,83 +295,83 @@ Packaging planner...
 All agents packaged successfully!
 ```
 
-## Paso 5: Configurar Terraform
+## Step 5: Configure Terraform
 
-Vamos a configurar la infraestructura.
+Let us configure infrastructure.
 
-### 5.1 Definir Variables de Terraform
+### 5.1 Set Terraform variables
 
-**En el directorio**: `terraform/6_agents`
+**In directory**: `terraform/6_agents`
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-Edita `terraform.tfvars` en Cursor y añade tus valores:
+Edit `terraform.tfvars` in Cursor and add your values:
 
 ```hcl
-# Tu región AWS para funciones Lambda (debe coincidir con la de la base de datos)
+# Your AWS region for Lambda functions (must match database region)
 aws_region = "us-east-1"
 
-# ARN del cluster Aurora de la Parte 5 (déjalo vacío - Terraform lo encuentra automáticamente)
+# Aurora cluster ARN from Part 5 (leave empty - Terraform finds it automatically)
 aurora_cluster_arn = ""
 
-# ARN secreto de Aurora de la Parte 5 (déjalo vacío - Terraform lo encuentra automáticamente)
+# Aurora secret ARN from Part 5 (leave empty - Terraform finds it automatically)
 aurora_secret_arn = ""
 
-# Nombre del bucket S3 Vectors de la Parte 3
-vector_bucket = "alex-vectors-123456789012"  # Reemplaza por tu Account ID
+# S3 Vectors bucket name from Part 3
+vector_bucket = "alex-vectors-123456789012"  # Replace with your Account ID
 
-# Configuración del modelo Bedrock
-bedrock_model_id = "us.amazon.nova-pro-v1:0"  # Modelo Nova Pro de Amazon
+# Bedrock model configuration
+bedrock_model_id = "us.amazon.nova-pro-v1:0"  # Amazon Nova Pro model
 
-# Región de Bedrock (puede ser distinta de Lambda)
+# Bedrock region (can differ from Lambda)
 bedrock_region = "us-west-2"
 
-# Nombre del endpoint SageMaker de la Parte 2
+# SageMaker endpoint name from Part 2
 sagemaker_endpoint = "alex-embedding-endpoint"
 
-# Configuración de API Polygon (para precios en tiempo real)
+# Polygon API configuration (for real-time prices)
 polygon_api_key = "your_polygon_api_key_here"
 polygon_plan = "free"
 ```
 
-**Nota**: Los ARN de Aurora pueden dejarse vacíos - Terraform los encuentra automáticamente usando data sources. Asegúrate de actualizar `vector_bucket` con tu ID de cuenta y agregar tu clave de Polygon.
+**Note**: Aurora ARNs can be left empty - Terraform finds them automatically with data sources. Make sure to update `vector_bucket` with your account ID and add your Polygon key.
 
-## Paso 6: Desplegar Infraestructura
+## Step 6: Deploy infrastructure
 
-Despleguemos las cinco funciones Lambda y la infraestructura asociada.
+Let us deploy the five Lambda functions and related infrastructure.
 
-### 6.1 Inicializar Terraform
+### 6.1 Initialize Terraform
 
-**En el directorio**: `terraform/6_agents`
+**In directory**: `terraform/6_agents`
 
 ```bash
 terraform init
 ```
 
-### 6.2 Revisar el plan
+### 6.2 Review plan
 
 ```bash
 terraform plan
 ```
 
-Revisa lo que se va a crear:
-- 5 funciones Lambda con distinta memoria y timeout
-- Bucket S3 para paquetes Lambda
-- Cola SQS con Dead Letter Queue
-- Roles y políticas IAM
-- Grupos de logs CloudWatch
+Review what will be created:
+- 5 Lambda functions with different memory and timeout
+- S3 bucket for Lambda packages
+- SQS queue with Dead Letter Queue
+- IAM roles and policies
+- CloudWatch log groups
 
-### 6.3 Desplegar
+### 6.3 Deploy
 
 ```bash
 terraform apply
 ```
 
-Escribe `yes` cuando lo pida. Tarda de 3 a 5 minutos.
+Type `yes` when prompted. It takes 3-5 minutes.
 
-**Salida esperada**:
+**Expected output**:
 ```
 Apply complete! Resources: 25 added, 0 changed, 0 destroyed.
 
@@ -386,19 +386,19 @@ lambda_functions = {
 sqs_queue_url = "https://sqs.us-east-1.amazonaws.com/123456789012/alex-analysis-jobs"
 ```
 
-## Paso 7: Subir Código Actualizado a Lambda
+## Step 7: Upload updated code to Lambda
 
-La implementación de Terraform creó las funciones Lambda, pero hay que subirles el código empaquetado más reciente:
+Terraform created the Lambda functions, but you still need to upload the latest packaged code:
 
-**En el directorio**: `backend`
+**In directory**: `backend`
 
 ```bash
 uv run deploy_all_lambdas.py
 ```
 
-Esto actualiza las cinco funciones Lambda con tu código empaquetado. Tarda cerca de 1 minuto.
+This updates all five Lambda functions with your packaged code. It takes around 1 minute.
 
-**Salida esperada**:
+**Expected output**:
 ```
 Updating alex-tagger... ✅
 Updating alex-reporter... ✅
@@ -408,223 +408,223 @@ Updating alex-planner... ✅
 All Lambda functions updated successfully!
 ```
 
-## Paso 8: Probar Agentes Desplegados
+## Step 8: Test deployed agents
 
-Probemos cada agente ejecutándose en AWS Lambda.
+Let us test each agent running on AWS Lambda.
 
-### 8.1 Probar Agentes Individuales
+### 8.1 Test individual agents
 
-Comprueba cada agente en AWS (ejecuta 3 veces para fiabilidad):
+Check each agent on AWS (run 3 times for reliability):
 
-**En el directorio**: `backend/tagger`
+**In directory**: `backend/tagger`
 ```bash
 uv run test_full.py
 ```
 
-**En el directorio**: `backend/reporter`
+**In directory**: `backend/reporter`
 ```bash
 uv run test_full.py
 ```
 
-**En el directorio**: `backend/charter`
+**In directory**: `backend/charter`
 ```bash
 uv run test_full.py
 ```
 
-**En el directorio**: `backend/retirement`
+**In directory**: `backend/retirement`
 ```bash
 uv run test_full.py
 ```
 
-**En el directorio**: `backend/planner`
+**In directory**: `backend/planner`
 ```bash
 uv run test_full.py
 ```
 
-Todas deben terminar exitosamente. La prueba del planner tarda más (60-90 segundos) ya que coordina a todos los agentes.
+All should complete successfully. Planner test takes longer (60-90 seconds) because it coordinates all agents.
 
-### 8.2 Probar el Sistema Completo vía SQS
+### 8.2 Test full system via SQS
 
-**En el directorio**: `backend`
+**In directory**: `backend`
 
 ```bash
 uv run test_full.py
 ```
 
-Esto envía un mensaje a SQS, lanzando el pipeline completo de análisis. Verás:
-1. Trabajo creado en la base de datos
-2. Mensaje enviado a SQS
-3. Planner recoge el mensaje
-4. Agentes procesan en paralelo
-5. Resultados guardados en la base de datos
-6. Trabajo marcado como completado
+This sends a message to SQS, launching the full analysis pipeline. You will see:
+1. Job created in database
+2. Message sent to SQS
+3. Planner picks up message
+4. Agents process in parallel
+5. Results saved to database
+6. Job marked completed
 
-Tiempo total: 90-120 segundos.
+Total time: 90-120 seconds.
 
-## Paso 9: Probar Escenarios Avanzados
+## Step 9: Test advanced scenarios
 
-### 9.1 Test de Múltiples Cuentas
+### 9.1 Multiple accounts test
 
-Prueba con un usuario que tiene varias cuentas de inversión:
+Test with a user who has several investment accounts:
 
-**En el directorio**: `backend`
+**In directory**: `backend`
 
 ```bash
 uv run test_multiple_accounts.py
 ```
 
-Esto crea un usuario con 3 cuentas (401k, IRA, Taxable) y corre el análisis completo. El sistema debe manejar todas correctamente.
+This creates a user with 3 accounts (401k, IRA, Taxable) and runs full analysis. The system should handle all of them correctly.
 
-### 9.2 Prueba de Escalabilidad
+### 9.2 Scalability test
 
-Prueba con múltiples usuarios simultáneamente:
+Test with multiple users simultaneously:
 
-**En el directorio**: `backend`
+**In directory**: `backend`
 
 ```bash
 uv run test_scale.py
 ```
 
-Esto crea 5 usuarios con portafolios de diferente tamaño y lanza análisis para todos en paralelo. Demuestra que el sistema soporta múltiples solicitudes.
+This creates 5 users with portfolios of different sizes and launches analysis for all in parallel. It demonstrates that the system supports multiple concurrent requests.
 
-## Paso 10: Explora la Base de Datos
+## Step 10: Explore the database
 
-Veamos qué crearon nuestros agentes en la base de datos:
+Let us see what our agents created in the database:
 
-**En el directorio**: `backend`
+**In directory**: `backend`
 
 ```bash
 uv run check_jobs.py
 ```
 
-Esto muestra los trabajos de análisis recientes con su estado y resultados:
-- IDs de trabajo y timestamps
-- Información del usuario
-- Estado (pendiente, procesando, completado)
-- Tamaño del resultado de cada agente
+This shows recent analysis jobs with status and results:
+- Job IDs and timestamps
+- User information
+- Status (pending, processing, completed)
+- Result size from each agent
 
-## Paso 11: Explora la Consola de AWS
+## Step 11: Explore AWS Console
 
-Observemos la infraestructura en acción:
+Let us observe infrastructure in action:
 
-### 11.1 Ver funciones Lambda
+### 11.1 View Lambda functions
 
-1. Ve a [Lambda Console](https://console.aws.amazon.com/lambda)
-2. Verás 5 funciones: `alex-planner`, `alex-tagger`, `alex-reporter`, `alex-charter`, `alex-retirement`
-3. Haz click en `alex-planner`
-4. Ve a la pestaña **Monitor**
-5. Haz clic en **View CloudWatch logs**
-6. Haz clic en el log stream más reciente
-7. Verás logs detallados mostrando el razonamiento del agente
+1. Go to [Lambda Console](https://console.aws.amazon.com/lambda)
+2. You will see 5 functions: `alex-planner`, `alex-tagger`, `alex-reporter`, `alex-charter`, `alex-retirement`
+3. Click `alex-planner`
+4. Go to **Monitor** tab
+5. Click **View CloudWatch logs**
+6. Click the most recent log stream
+7. You will see detailed logs showing agent reasoning
 
-### 11.2 Revisar la cola SQS
+### 11.2 Check SQS queue
 
-1. Ve a [SQS Console](https://console.aws.amazon.com/sqs)
-2. Haz clic en `alex-analysis-jobs`
-3. Revisa la pestaña **Monitoring** para métricas de mensajes
-4. **Messages available** debe ser 0 (todas procesadas)
-5. Revisa la dead letter queue `alex-analysis-jobs-dlq` (debe estar vacía)
+1. Go to [SQS Console](https://console.aws.amazon.com/sqs)
+2. Click `alex-analysis-jobs`
+3. Check **Monitoring** tab for message metrics
+4. **Messages available** should be 0 (all processed)
+5. Check dead letter queue `alex-analysis-jobs-dlq` (should be empty)
 
-### 11.3 Monitorea Costos
+### 11.3 Monitor costs
 
-1. Ve a [Cost Management Console](https://console.aws.amazon.com/cost-management)
-2. Haz clic en **Cost Explorer**
-3. Filtra por servicio para ver:
-   - Costos de Lambda (mínimos, pagas por ejecución)
-   - Costos de Aurora (~$1-2/día cuando está en pausa)
-   - Costos Bedrock (pagas por token)
-   - Costos de SQS (fracciones de centavo)
+1. Go to [Cost Management Console](https://console.aws.amazon.com/cost-management)
+2. Click **Cost Explorer**
+3. Filter by service to see:
+   - Lambda costs (minimal, pay-per-execution)
+   - Aurora costs (~$1-2/day when paused)
+   - Bedrock costs (pay-per-token)
+   - SQS costs (fractions of a cent)
 
-Coste mensual esperado para desarrollo: $30-50.
+Expected monthly cost for development: $30-50.
 
-## Solución de Problemas
+## Troubleshooting
 
-### Problemas de Timeout en Agentes
+### Agent timeout issues
 
-Si los agentes se quedan sin tiempo:
-1. Revisa configuración de timeout de la función Lambda (debe ser 60s para agentes, 300s para planner)
-2. Verifica acceso a modelos Bedrock en us-west-2
-3. Revisa logs CloudWatch para errores específicos
+If agents time out:
+1. Check Lambda timeout settings (should be 60s for agents, 300s for planner)
+2. Verify Bedrock model access in us-west-2
+3. Review CloudWatch logs for specific errors
 
-### Error de Conexión con la Base de Datos
+### Database connection error
 
-Si hay errores con la base de datos:
-1. Verifica que el clúster Aurora está corriendo (no en pausa)
-2. Verifica que DATABASE_CLUSTER_ARN está en variables de entorno de Lambda
-3. Asegura que Data API está habilitado en el clúster
+If there are database errors:
+1. Verify Aurora cluster is running (not paused)
+2. Verify `DATABASE_CLUSTER_ARN` exists in Lambda environment variables
+3. Ensure Data API is enabled on the cluster
 
-### Mensaje SQS No Procesado
+### SQS message not processed
 
-Si los mensajes permanecen en la cola:
-1. Comprueba que planner Lambda tiene trigger SQS habilitado
-2. Verifica permisos IAM para acceso a SQS
-3. Revisa la dead letter queue para ver mensajes fallidos
+If messages remain in queue:
+1. Check that planner Lambda has SQS trigger enabled
+2. Verify IAM permissions for SQS access
+3. Review dead letter queue for failed messages
 
-### Errores de Límite de Tasa
+### Rate-limit errors
 
-Si ves errores de rate limit:
-1. Los agentes reintentan automáticamente con backoff exponencial
-2. Considera espaciar las solicitudes
-3. El modelo Nova Pro permite mucho, pero puede agotarse eventualmente
+If you see rate-limit errors:
+1. Agents automatically retry with exponential backoff
+2. Consider spacing out requests
+3. Nova Pro allows a lot, but limits can still be hit
 
-### Errores de Modelo Incorrecto
+### Incorrect model errors
 
-Si ves errores de modelo no encontrado:
-1. Verifica acceso a modelos Bedrock en us-west-2
-2. Verifica la variable de entorno BEDROCK_MODEL_ID
-3. Asegúrate de usar el formato `us.amazon.nova-pro-v1:0`
+If you see model-not-found errors:
+1. Verify Bedrock model access in us-west-2
+2. Verify `BEDROCK_MODEL_ID` environment variable
+3. Make sure you use format `us.amazon.nova-pro-v1:0`
 
-### Resultados Vacíos
+### Empty results
 
-Si los agentes devuelven resultados vacíos:
-1. Verifica que los datos de prueba incluyen posiciones válidas
-2. Asegúrate que la base de datos contiene datos de instrumentos (ejecuta migrate.py si hace falta)
-3. Consulta los logs CloudWatch para ver el razonamiento del agente
+If agents return empty results:
+1. Verify test data includes valid positions
+2. Ensure database contains instrument data (run migration script if needed)
+3. Check CloudWatch logs for agent reasoning
 
-## Arquitectura en Profundidad
+## Architecture deep dive
 
-### Patrón de Comunicación entre Agentes
+### Agent communication pattern
 
-Los agentes usan un patrón sofisticado de colaboración:
+Agents use a robust collaboration pattern:
 
-1. **Disparo asíncrono**: SQS desacopla la solicitud del procesamiento
-2. **Preprocesamiento**: El orquestador prepara los datos
-3. **Ejecución en paralelo**: Los agentes trabajan simultáneamente cuando es posible
-4. **Escrituras aisladas**: Cada agente escribe su propio campo en la base de datos
-5. **Finalización atómica**: El trabajo se marca como completado solo si todos tienen éxito
+1. **Asynchronous trigger**: SQS decouples request from processing
+2. **Preprocessing**: Orchestrator prepares data
+3. **Parallel execution**: Agents run simultaneously when possible
+4. **Isolated writes**: Each agent writes to its own field in database
+5. **Atomic completion**: Job is marked complete only if all succeed
 
-### Estrategia de uso de herramientas
+### Tool usage strategy
 
-Cada agente usa herramientas de manera diferente:
-- **Tagger**: Sin herramientas (solo salida estructurada)
-- **Reporter**: Herramientas para acceder a S3 Vectors y escribir en la base de datos
-- **Charter**: Sin herramientas (regresa JSON directo)
-- **Retirement**: Herramientas para escribir en la base de datos
-- **Planner**: Herramientas para invocar otros agentes y finalizar
+Each agent uses tools differently:
+- **Tagger**: No tools (structured output only)
+- **Reporter**: Tools to access S3 Vectors and write database
+- **Charter**: No tools (returns direct JSON)
+- **Retirement**: Tools to write database
+- **Planner**: Tools to invoke other agents and finalize
 
-Esto evita el conflicto entre herramientas y salidas estructuradas en OpenAI Agents SDK.
+This avoids conflicts between tool calling and structured outputs in OpenAI Agents SDK.
 
-### Manejo de Errores
+### Error handling
 
-El sistema maneja errores de manera robusta:
-- Reintentos automáticos con backoff exponencial ante rate limits
-- Dead letter queue para mensajes fallidos
-- Logs detallados para depuración
-- La base de datos rastrea el estado de los errores
+The system handles errors robustly:
+- Automatic retries with exponential backoff for rate limits
+- Dead letter queue for failed messages
+- Detailed logs for debugging
+- Database tracks error status
 
-## Próximos Pasos
+## Next steps
 
-¡Felicidades! Has desplegado un sofisticado sistema de IA multi-agente. Tus agentes ya están listos para aportar análisis financiero inteligente.
+Congratulations! You have deployed a sophisticated multi-agent AI system. Your agents are now ready to provide intelligent financial analysis.
 
-Continúa con la [Guía 7](7_frontend.md) donde construirás la aplicación frontend con la que los usuarios interactuarán para gestionar sus portafolios y solicitar análisis a tus agentes IA.
+Continue with [Guide 7](7_frontend.md), where you will build the frontend application users interact with to manage portfolios and request analysis from your AI agents.
 
-## Resumen
+## Summary
 
-En esta guía:
-- ✅ Desplegaste 5 agentes IA especializados
-- ✅ Configuraste la orquestación de agentes con SQS
-- ✅ Probaste ejecuciones locales y remotas
-- ✅ Verificaste que soporta varios usuarios
-- ✅ Exploraste monitorización y gestión de costes
+In this guide:
+- ✅ You deployed 5 specialized AI agents
+- ✅ You configured SQS-based agent orchestration
+- ✅ You tested local and remote executions
+- ✅ You verified support for multiple users
+- ✅ You explored monitoring and cost management
 
-¡Tu orquesta de IA está lista para actuar! 🎭
+Your AI orchestra is ready to perform! 🎭

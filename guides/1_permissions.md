@@ -1,39 +1,39 @@
-# Construyendo Alex: Parte 1 - Configuración de Permisos en AWS
+# Building Alex: Part 1 - AWS Permission Setup
 
-Bienvenido al Proyecto Alex - ¡el Agentic Learning Equities eXplainer!
+Welcome to the Alex Project - the Agentic Learning Equities eXplainer!
 
-Alex es un planificador financiero personal impulsado por IA que ayudará a los usuarios a gestionar sus carteras de inversión y planificar su jubilación. A lo largo de este curso, construiremos un sistema de IA completo utilizando servicios de AWS.
+Alex is an AI-powered personal financial planner that helps users manage their investment portfolios and plan for retirement. Throughout this course, we will build a complete AI system using AWS services.
 
-## ¿Qué es Alex?
+## What is Alex?
 
-Alex ayudará a los usuarios a:
-- Entender sus carteras de inversión
-- Planificar la jubilación
-- Obtener asesoramiento financiero personalizado
-- Rastrear tendencias y oportunidades del mercado
+Alex helps users:
+- Understand their investment portfolios
+- Plan for retirement
+- Get personalized financial guidance
+- Track market trends and opportunities
 
-## ¡¡ANTES DE EMPEZAR - CONSEJO IMPORTANTE!!
+## BEFORE YOU START - IMPORTANT TIP!
 
-Hay un archivo `gameplan.md` en la raíz del proyecto que describe todo el proyecto Alex para un Agente de IA, para que puedas hacer preguntas y recibir ayuda. También existen archivos idénticos llamados `CLAUDE.md` y `AGENTS.md`. Si necesitas ayuda, simplemente inicia tu Agente de IA favorito y dale esta instrucción:
+There is a `gameplan.md` file at the project root that describes the full Alex project for an AI Agent, so you can ask questions and get help. There are also identical files called `CLAUDE.md` and `AGENTS.md`. If you need help, simply open your favorite AI Agent and give it this prompt:
 
-> Soy un estudiante del curso IA en Producción. Estamos en el repositorio del curso. Lee el archivo `gameplan.md` para un resumen del proyecto. Lee este archivo completamente y revisa todas las guías vinculadas cuidadosamente. No comiences ningún trabajo aparte de leer y comprobar la estructura de directorios. Cuando hayas terminado toda la lectura, dime si tienes preguntas antes de empezar.
+> I am a student in the AI in Production course. We are in the course repository. Read the `gameplan.md` file for a project overview. Read this file completely and carefully review all linked guides. Do not start any work other than reading and checking the directory structure. When you finish all reading, tell me whether you have questions before we begin.
 
-Luego de responder cualquier pregunta, indica exactamente en qué guía te encuentras y cualquier problema que estés experimentando. Tu agente estará completamente informado y listo para ayudarte. Permítele ejecutar comandos de aws y terraform para investigar. Ten cuidado de validar cada sugerencia; pide siempre la causa raíz de los problemas y evidencia que demuestre que realmente la ha encontrado. Los LLMs tienden a sacar conclusiones precipitadas, pero a menudo se corrigen cuando deben aportar evidencia.
+After answering any questions, clearly state which guide you are on and any issues you are experiencing. Your agent will be fully informed and ready to help. Allow it to run AWS and Terraform commands for investigation. Be careful to validate every suggestion; always ask for the root cause and evidence that it has actually been found. LLMs often jump to conclusions, but they usually self-correct when they must provide evidence.
 
-## Resumen de la Arquitectura
+## Architecture Overview
 
-Esto es lo que vas a construir a lo largo de todas las guías:
+This is what you will build across all guides:
 
 ```mermaid
 graph TB
-    User[Usuario] -->|Investiga| AR[App Runner<br/>Investigador IA]
-    Schedule[EventBridge<br/>Cada 2 Horas] -->|Dispara| SchedLambda[Lambda<br/>Scheduler]
-    SchedLambda -->|Llama| AR
-    AR -->|Genera| Bedrock[AWS Bedrock<br/>OSS 120B Model]
-    AR -->|Guarda| Lambda[Lambda<br/>Ingest]
-    Lambda -->|Genera embeddings| SM[SageMaker<br/>Embeddings]
-    Lambda -->|Indexa| S3V[(S3 Vectors<br/>¡90% Más Barato!)]
-    User -->|Busca| S3V
+    User[User] -->|Researches| AR[App Runner<br/>AI Researcher]
+    Schedule[EventBridge<br/>Every 2 Hours] -->|Triggers| SchedLambda[Lambda<br/>Scheduler]
+    SchedLambda -->|Calls| AR
+    AR -->|Generates| Bedrock[AWS Bedrock<br/>OSS 120B Model]
+    AR -->|Stores| Lambda[Lambda<br/>Ingest]
+    Lambda -->|Generates embeddings| SM[SageMaker<br/>Embeddings]
+    Lambda -->|Indexes| S3V[(S3 Vectors<br/>90% Cheaper!)]
+    User -->|Searches| S3V
     
     style AR fill:#FF9900
     style S3V fill:#90EE90
@@ -43,58 +43,58 @@ graph TB
     style Bedrock fill:#FF9900
 ```
 
-Consulta [architecture.md](architecture.md) para ver la arquitectura completa del sistema.
+See [architecture.md](architecture.md) for the complete system architecture.
 
-## Sobre esta guía
+## About this guide
 
-Esta primera guía se centra en configurar los permisos necesarios de AWS. Crearemos un grupo IAM dedicado solo con los permisos necesarios para el proyecto Alex.
+This first guide focuses on setting up the required AWS permissions. We will create a dedicated IAM group with only the permissions needed for the Alex project.
 
-## Nota importante sobre la gestión de la infraestructura
+## Important note about infrastructure management
 
-Este proyecto utiliza Terraform para desplegar la infraestructura con un enfoque específico pensado para fines educativos:
-- **Directorios separados de Terraform**: Cada guía tiene su propio directorio Terraform (por ejemplo, `terraform/2_sagemaker`, `terraform/3_ingestion`)
-- **Archivos de estado locales**: Usamos archivos de estado locales en vez de S3 para simplificar (se ignoran en git automáticamente)
-- **Despliegues independientes**: Cada parte se puede desplegar de forma independiente sin afectar a las demás
-- **No se necesita bucket de estado**: Esto elimina la complejidad de configurar y gestionar un bucket de estado de Terraform
+This project uses Terraform to deploy infrastructure with a specific educational approach:
+- **Separate Terraform directories**: Each guide has its own Terraform directory (for example, `terraform/2_sagemaker`, `terraform/3_ingestion`)
+- **Local state files**: We use local state files instead of S3 for simplicity (automatically ignored by git)
+- **Independent deployments**: Each part can be deployed independently without affecting the others
+- **No remote state bucket required**: This removes the complexity of setting up and maintaining a Terraform state bucket
 
-Este enfoque te permite:
-- Desplegar cada parte a medida que avanzas por las guías
-- Evitar el despliegue accidental de partes adelantadas
-- Mantener los cambios de infraestructura aislados
-- Simplificar la experiencia de aprendizaje
+This approach lets you:
+- Deploy each part as you move through the guides
+- Avoid accidentally deploying later sections too early
+- Keep infrastructure changes isolated
+- Simplify the learning experience
 
-## Prerrequisitos
+## Prerequisites
 
-Antes de empezar, asegúrate de tener:
-- Una cuenta de AWS con acceso root
-- AWS CLI instalado y configurado con tu usuario IAM `aiengineer`
-- Familiaridad básica con los servicios de AWS
-- Terraform instalado (versión 1.5 o superior)
+Before you begin, make sure you have:
+- An AWS account with root access
+- AWS CLI installed and configured with your IAM user `aiengineer`
+- Basic familiarity with AWS services
+- Terraform installed (version 1.5 or higher)
 
-**Nota para usuarios de VS Code/Cursor**: Para visualizar los diagramas de arquitectura en esta guía, instala la extensión "Markdown Preview Mermaid Support" (ID: `bierner.markdown-mermaid`). Esto mostrará los diagramas en la vista previa de Markdown.
+**Note for VS Code/Cursor users**: To view architecture diagrams in this guide, install the "Markdown Preview Mermaid Support" extension (ID: `bierner.markdown-mermaid`). This enables Mermaid diagrams in Markdown preview.
 
-## Paso 1: Configuración de permisos IAM
+## Step 1: IAM permission setup
 
-Primero, necesitamos crear los permisos IAM adecuados para el proyecto Alex. Crearemos un grupo IAM dedicado solo con los permisos necesarios para este proyecto.
+First, we need to create the correct IAM permissions for the Alex project. We will create a dedicated IAM group with only the permissions required for this project.
 
-### 1.1 Iniciar sesión como usuario root
+### 1.1 Sign in as root user
 
-1. Ve a [https://aws.amazon.com/console/](https://aws.amazon.com/console/)
-2. Haz clic en "Sign In to the Console"
-3. Selecciona "Root user" e introduce tu correo de root
-4. Haz clic en "Next" e introduce tu contraseña de root
+1. Go to [https://aws.amazon.com/console/](https://aws.amazon.com/console/)
+2. Click "Sign In to the Console"
+3. Select "Root user" and enter your root email
+4. Click "Next" and enter your root password
 
-⚠️ **Nota de seguridad**: Solo usamos el usuario root para esta configuración de IAM. Para todo lo demás, usaremos nuestro usuario IAM.
+⚠️ **Security note**: We use the root user only for this IAM setup. For everything else, we will use our IAM user.
 
-### 1.2 Crear la política de S3 Vectors
+### 1.2 Create the S3 Vectors policy
 
-Como S3 Vectors es un servicio nuevo (en 2025), necesitamos crear una política personalizada para él:
+Because S3 Vectors is a new service (in 2025), we need to create a custom policy for it:
 
-1. En la consola de AWS, dirígete a **IAM** (Identity and Access Management)
-2. En la barra lateral izquierda, haz clic en **Policies**
-3. Haz clic en **Create policy**
-4. Haz clic en la pestaña **JSON**
-5. Sustituye el contenido por:
+1. In the AWS console, go to **IAM** (Identity and Access Management)
+2. In the left sidebar, click **Policies**
+3. Click **Create policy**
+4. Click the **JSON** tab
+5. Replace the content with:
 
 ```json
 {
@@ -111,97 +111,97 @@ Como S3 Vectors es un servicio nuevo (en 2025), necesitamos crear una política 
 }
 ```
 
-6. Haz clic en **Next: Tags**, luego **Next: Review**
-7. En **Policy name**, introduce: `AlexS3VectorsAccess`
-8. En **Description**, introduce: `Full access to S3 Vectors for Alex project`
-9. Haz clic en **Create policy**
+6. Click **Next: Tags**, then **Next: Review**
+7. In **Policy name**, enter: `AlexS3VectorsAccess`
+8. In **Description**, enter: `Full access to S3 Vectors for Alex project`
+9. Click **Create policy**
 
-### 1.3 Crear el Grupo AlexAccess
+### 1.3 Create the AlexAccess group
 
-1. Aún en IAM, haz clic en **User groups** en la barra lateral izquierda
-2. Haz clic en el botón **Create group**
-3. En **Group name**, introduce: `AlexAccess`
-4. En la sección **Attach permissions policies**, busca y selecciona estas políticas:
-   - `AmazonSageMakerFullAccess` (política administrada de AWS)
-   - `AmazonBedrockFullAccess` (política administrada de AWS - acceso a modelos IA)
-   - `CloudWatchEventsFullAccess` (política administrada de AWS - incluye EventBridge)
-   - `AlexS3VectorsAccess` (la política personalizada que acabas de crear)
+1. Still in IAM, click **User groups** in the left sidebar
+2. Click **Create group**
+3. In **Group name**, enter: `AlexAccess`
+4. In **Attach permissions policies**, search for and select these policies:
+   - `AmazonSageMakerFullAccess` (AWS managed policy)
+   - `AmazonBedrockFullAccess` (AWS managed policy - AI model access)
+   - `CloudWatchEventsFullAccess` (AWS managed policy - includes EventBridge)
+   - `AlexS3VectorsAccess` (the custom policy you just created)
    
-   Nota: Ya disponemos de permisos para Lambda, S3, CloudWatch y API Gateway desde otros grupos.
+   Note: We already have permissions for Lambda, S3, CloudWatch, and API Gateway from other groups.
 
-5. Haz clic en **Create group**
+5. Click **Create group**
 
-### 1.4 Añadir el grupo a tu usuario IAM
+### 1.4 Add the group to your IAM user
 
-1. Aún en IAM, haz clic en **Users** en la barra lateral izquierda
-2. Haz clic en tu usuario `aiengineer`
-3. Haz clic en la pestaña **Groups**
-4. Haz clic en **Add user to groups**
-5. Marca la casilla al lado de `AlexAccess`
-6. Haz clic en **Add to groups**
+1. Still in IAM, click **Users** in the left sidebar
+2. Click your `aiengineer` user
+3. Click the **Groups** tab
+4. Click **Add user to groups**
+5. Check the box next to `AlexAccess`
+6. Click **Add to groups**
 
-### 1.5 Cierra sesión e inicia sesión de nuevo
+### 1.5 Sign out and sign in again
 
-1. Haz clic en tu nombre de usuario en la esquina superior derecha
-2. Haz clic en **Sign out**
-3. Inicia sesión de nuevo usando tus credenciales de usuario IAM:
-   - Account ID o alias
-   - Nombre de usuario IAM: `aiengineer`
-   - Tu contraseña IAM
+1. Click your username in the top-right corner
+2. Click **Sign out**
+3. Sign in again using your IAM user credentials:
+   - Account ID or alias
+   - IAM username: `aiengineer`
+   - Your IAM password
 
-### 1.6 Verifica los permisos
+### 1.6 Verify permissions
 
-Verifiquemos que tienes los permisos necesarios ejecutando:
+Let's verify that you have the required permissions by running:
 
 ```bash
 aws sts get-caller-identity
 ```
 
-Deberías ver el ARN de tu usuario IAM. Ahora, comprobemos el acceso a SageMaker:
+You should see your IAM user ARN. Now check SageMaker access:
 
 ```bash
 aws sagemaker list-endpoints
 ```
 
-Esto debería devolver una lista vacía (sin error).
+This should return an empty list (with no error).
 
-## Paso 3: Configuración inicial del proyecto
+## Step 3: Initial project setup
 
-Antes de pasar a la siguiente guía, vamos a configurar tus archivos de entorno:
+Before moving to the next guide, let's set up your environment files:
 
-### Crea tu archivo de entorno
+### Create your environment file
 
 ```bash
-# Navega a la raíz del proyecto
-cd alex  # o a donde hayas clonado el repo
+# Navigate to the project root
+cd alex  # or where you cloned the repo
 
-# Copia el archivo de entorno de ejemplo
+# Copy the example environment file
 cp .env.example .env
 
-# Obtén tu AWS account ID
+# Get your AWS account ID
 aws sts get-caller-identity --query Account --output text
 ```
 
-Edita el archivo `.env` y añade tu AWS account ID y la región por defecto:
+Edit `.env` and add your AWS account ID and default region:
 ```
-AWS_ACCOUNT_ID=123456789012     # Tu Account ID real
-DEFAULT_AWS_REGION=us-east-1    # Tu región por defecto preferida
+AWS_ACCOUNT_ID=123456789012     # Your real account ID
+DEFAULT_AWS_REGION=us-east-1    # Your preferred default region
 ```
 
-Añadirás más valores a este archivo a medida que avances en las guías.
+You will add more values to this file as you progress through the guides.
 
-### Archivos importantes
+### Important files
 
-Este proyecto utiliza dos tipos de archivos de configuración:
-- **`.env`** - Variables de entorno para scripts Python y servicios backend
-- **`terraform.tfvars`** - Configuración para la infraestructura de Terraform
+This project uses two types of configuration files:
+- **`.env`** - Environment variables for Python scripts and backend services
+- **`terraform.tfvars`** - Configuration for Terraform infrastructure
 
-Ambos están incluidos en el .gitignore por seguridad. Debes crearlos a partir de los ejemplos proporcionados.
+Both are included in `.gitignore` for security. You must create them from the provided examples.
 
-## Próximos pasos
+## Next steps
 
-¡Excelente! Ya tienes los permisos necesarios y la configuración inicial completada.
+Excellent! You now have the required permissions and initial setup complete.
 
-Continúa a la siguiente guía: [2_sagemaker.md](2_sagemaker.md) donde desplegaremos nuestro primer componente IA - un endpoint serverless de SageMaker para generar embeddings de texto.
+Continue to the next guide: [2_sagemaker.md](2_sagemaker.md), where we will deploy our first AI component - a serverless SageMaker endpoint for generating text embeddings.
 
-¡Esto será la base de la capacidad de Alex para entender y procesar información financiera! 🚀
+This will be the foundation of Alex's ability to understand and process financial information! 🚀

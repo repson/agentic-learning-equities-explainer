@@ -1,45 +1,45 @@
-# Guía 4: Despliega el Agente Investigador
+# Guide 4: Deploy the Researcher Agent
 
-En esta guía, desplegarás el servicio Alex Researcher: un agente de IA que genera investigaciones de inversión y las almacena automáticamente en tu base de conocimientos.
+In this guide, you will deploy the Alex Researcher service: an AI agent that generates investment research and automatically stores it in your knowledge base.
 
-## Prerrequisitos
+## Prerequisites
 
-Antes de comenzar, asegúrate de tener:
-1. Completado las Guías 1-3 (SageMaker, S3 Vectors y Pipeline de Ingesta desplegados)
-2. Docker Desktop instalado y en ejecución
-3. AWS CLI configurado con tus credenciales
-4. Acceso a los modelos OpenAI OSS de AWS Bedrock (ver Paso 0 abajo)
+Before you begin, make sure you have:
+1. Completed Guides 1-3 (SageMaker, S3 Vectors, and Ingestion Pipeline deployed)
+2. Docker Desktop installed and running
+3. AWS CLI configured with your credentials
+4. Access to AWS Bedrock OpenAI OSS models (see Step 0 below)
 
-## ¡RECORDATORIO - CONSEJO IMPORTANTE!
+## REMINDER - IMPORTANT TIP!
 
-Hay un archivo `gameplan.md` en la raíz del proyecto que describe todo el proyecto Alex a un Agente de IA, para que puedas hacer preguntas y recibir ayuda. También existen los archivos idénticos `CLAUDE.md` y `AGENTS.md`. Si necesitas ayuda, simplemente inicia tu agente de IA favorito y dale la siguiente instrucción:
+There is a `gameplan.md` file in the project root that describes the full Alex project for an AI Agent, so you can ask questions and get help. There are also identical files named `CLAUDE.md` and `AGENTS.md`. If you need help, just start your favorite AI agent and give it this instruction:
 
-> Soy estudiante en el curso AI in Production. Estamos en el repositorio del curso. Lee el archivo `gameplan.md` para un resumen del proyecto. Lee este archivo completamente y revisa todas las guías vinculadas cuidadosamente. No comiences ningún trabajo aparte de leer y comprobar la estructura de carpetas. Cuando hayas terminado de leer, dime si tienes preguntas antes de que empecemos.
+> I am a student in the AI in Production course. We are in the course repository. Read the `gameplan.md` file for a project overview. Read this file fully and review all linked guides carefully. Do not start any work other than reading and checking the folder structure. When you finish reading, tell me if you have any questions before we begin.
 
-Después de responder preguntas, di exactamente en qué guía estás y cualquier problema. Ten cuidado de validar cada sugerencia; siempre pregunta por la causa raíz y evidencia de los problemas. Los LLM tienden a sacar conclusiones apresuradas, pero a menudo se corrigen cuando se les pide evidencia.
+After it answers questions, state exactly which guide you are on and any issue. Be careful validating every suggestion; always ask for the root cause and evidence for problems. LLMs tend to jump to conclusions, but often self-correct when asked for evidence.
 
-## Qué vas a desplegar
+## What you will deploy
 
-El servicio Researcher es una aplicación AWS App Runner que:
-- Usa el SDK OpenAI Agents para orquestación y trazabilidad del agente
-- Usa AWS Bedrock con el modelo OSS 120B de OpenAI para capacidades de IA
-- Emplea un servidor MCP (Model Context Protocol) de Playwright para navegación web y obtención de datos
-- Llama automáticamente a tu pipeline de ingesta para almacenar investigaciones en S3 Vectors
-- Proporciona una API REST para generar análisis financieros bajo demanda
+The Researcher service is an AWS App Runner application that:
+- Uses the OpenAI Agents SDK for agent orchestration and tracing
+- Uses AWS Bedrock with OpenAI OSS 120B for AI capabilities
+- Uses a Playwright MCP (Model Context Protocol) server for web browsing and data gathering
+- Automatically calls your ingestion pipeline to store research in S3 Vectors
+- Provides a REST API to generate on-demand financial analysis
 
-Así encaja en la arquitectura de Alex:
+Here is how it fits into the Alex architecture:
 
 ```mermaid
 graph LR
-    User[Usuario] -->|Solicitud de investigación| AR[App Runner<br/>Researcher]
-    Schedule[EventBridge<br/>Cada 2h] -->|Disparar| SchedLambda[Lambda<br/>Scheduler]
-    SchedLambda -->|Investigación automática| AR
-    AR -->|Generar análisis| Bedrock[AWS Bedrock<br/>OSS 120B<br/>us-west-2]
-    AR -->|Almacenar investigación| API[API Gateway]
-    API -->|Procesar| Lambda[Lambda<br/>Ingest]
+    User[User] -->|Research request| AR[App Runner<br/>Researcher]
+    Schedule[EventBridge<br/>Every 2h] -->|Trigger| SchedLambda[Lambda<br/>Scheduler]
+    SchedLambda -->|Automated research| AR
+    AR -->|Generate analysis| Bedrock[AWS Bedrock<br/>OSS 120B<br/>us-west-2]
+    AR -->|Store research| API[API Gateway]
+    API -->|Process| Lambda[Lambda<br/>Ingest]
     Lambda -->|Embeddings| SM[SageMaker<br/>all-MiniLM-L6-v2]
-    Lambda -->|Almacenar| S3V[(S3 Vectors<br/>¡90% más barato!)]
-    User -->|Buscar| S3V
+    Lambda -->|Store| S3V[(S3 Vectors<br/>90% cheaper!)]
+    User -->|Search| S3V
     
     style AR fill:#FF9900
     style Bedrock fill:#FF9900
@@ -48,223 +48,223 @@ graph LR
     style SchedLambda fill:#FF9900
 ```
 
-## Paso 0: Solicita acceso a los modelos Bedrock
+## Step 0: Request access to Bedrock models
 
-Researcher utiliza AWS Bedrock con el modelo open-source OSS 120B de OpenAI. Primero necesitas solicitar acceso a este modelo.
+Researcher uses AWS Bedrock with the OpenAI OSS 120B open-source model. First, you need to request access to this model.
 
-### Solicitar acceso al modelo - Estas instrucciones son para modelos OSS, pero también puedes usar Nova en us-east-1 o en tu región (más económico y sencillo)
+### Request model access - These instructions are for OSS models, but you can also use Nova in us-east-1 or in your region (cheaper and simpler)
 
-1. Inicia sesión en la consola de AWS
-2. Navega al servicio **Amazon Bedrock**
-3. Cambia a la región **US West (Oregon) us-west-2** (parte superior derecha)
-4. En el menú lateral izquierdo, haz clic en **Model access**
-5. Haz clic en **Manage model access** o **Modify model access**
-6. Busca la sección **OpenAI**
-7. Marca las casillas para:
+1. Sign in to the AWS Console
+2. Go to **Amazon Bedrock**
+3. Switch to region **US West (Oregon) us-west-2** (top-right)
+4. In the left sidebar, click **Model access**
+5. Click **Manage model access** or **Modify model access**
+6. Find the **OpenAI** section
+7. Check the boxes for:
    - **gpt-oss-120b** (OpenAI GPT OSS 120B)
-   - **gpt-oss-20b** (OpenAI GPT OSS 20B) - opcional, modelo más pequeño
-8. Haz clic en **Request model access** en la parte inferior
-9. Espera la aprobación (normalmente instantánea para estos modelos)
-10. Como alternativa, solicita acceso a los modelos Amazon Nova en tu región o en us-east-1
+   - **gpt-oss-20b** (OpenAI GPT OSS 20B) - optional, smaller model
+8. Click **Request model access** at the bottom
+9. Wait for approval (usually instant for these models)
+10. Alternatively, request access to Amazon Nova models in your region or in us-east-1
 
-**Notas importantes:**
-- ⚠️ Los modelos OSS SOLO están disponibles en la región **us-west-2**
-- ✅ Tu servicio App Runner puede estar en cualquier región (por ejemplo, us-east-1) y conectarse entre regiones a us-west-2
-- Los modelos OSS son modelos open-weight de OpenAI, no son los modelos GPT comerciales
-- No se requiere API Key para Bedrock – la autenticación la gestiona AWS IAM
-- El agente researcher requiere una API Key de OpenAI para la funcionalidad de trazado del SDK OpenAI Agents (para monitorear y depurar la ejecución del agente)
+**Important notes:**
+- ⚠️ OSS models are ONLY available in region **us-west-2**
+- ✅ Your App Runner service can be in any region (for example, us-east-1) and connect cross-region to us-west-2
+- OSS models are OpenAI open-weight models, not commercial GPT models
+- No API key is required for Bedrock - authentication is handled by AWS IAM
+- The researcher agent requires an OpenAI API key for OpenAI Agents SDK tracing functionality (to monitor and debug agent execution)
 
-## Parte extra del Paso 0: ¡IMPORTANTE - AGREGADO DESDE LOS VIDEOS!
+## Extra part of Step 0: IMPORTANT - ADDED FROM THE VIDEOS!
 
-### Actualiza server.py con tu modelo
+### Update `server.py` with your model
 
-Muchas gracias al estudiante Marcin B. por este paso crucial.
+Many thanks to student Marcin B. for this critical step.
 
-En laboratorios futuros, haremos esto más configurable. Pero en este paso, el Agente Researcher tiene algunas variables en el código que necesitas cambiar manualmente.
+In future labs, we will make this more configurable. But in this step, the Researcher Agent has some code variables you must change manually.
 
-Por favor, revisa el archivo `backend/researcher/server.py`
+Please review the file `backend/researcher/server.py`
 
-Deberías ver esta sección:
+You should see this section:
 
 ```python
-    # Por favor, sobrescribe estas variables con la región que estás usando
-    # Otras opciones: us-west-2 (para modelos OpenAI OSS) y eu-central-1
+    # Please overwrite these variables with the region you are using
+    # Other options: us-west-2 (for OpenAI OSS models) and eu-central-1
     REGION = "us-east-1"
-    os.environ["AWS_REGION_NAME"] = REGION  # Variable preferida de LiteLLM
-    os.environ["AWS_REGION"] = REGION  # Estándar en Boto3
+    os.environ["AWS_REGION_NAME"] = REGION  # LiteLLM preferred variable
+    os.environ["AWS_REGION"] = REGION  # Boto3 standard
     os.environ["AWS_DEFAULT_REGION"] = REGION  # Fallback
 
-    # Por favor, sobrescribe esta variable con el modelo que estés utilizando
-    # Opciones comunes: bedrock/eu.amazon.nova-pro-v1:0 para EU y bedrock/us.amazon.nova-pro-v1:0 para US
-    # o bedrock/amazon.nova-pro-v1:0 si no usas perfiles de inferencia
-    # bedrock/openai.gpt-oss-120b-1:0 para modelos OpenAI OSS
-    # bedrock/converse/us.anthropic.claude-sonnet-4-20250514-v1:0 para Claude Sonnet 4
-    # NOTA: nova-pro es necesario para soportar herramientas y servidores MCP; nova-lite no es suficiente – gracias Yuelin L.!
+    # Please overwrite this variable with the model you are using
+    # Common options: bedrock/eu.amazon.nova-pro-v1:0 for EU and bedrock/us.amazon.nova-pro-v1:0 for US
+    # or bedrock/amazon.nova-pro-v1:0 if you are not using inference profiles
+    # bedrock/openai.gpt-oss-120b-1:0 for OpenAI OSS models
+    # bedrock/converse/us.anthropic.claude-sonnet-4-20250514-v1:0 for Claude Sonnet 4
+    # NOTE: nova-pro is required to support tools and MCP servers; nova-lite is not enough - thanks Yuelin L.!
     MODEL = "bedrock/us.amazon.nova-pro-v1:0"
     model = LitellmModel(model=MODEL)
 ```
 
-Actualiza los valores de REGION y MODEL para reflejar el modelo al que tienes acceso. Ve los ejemplos dados para valores posibles.  
-Ten en cuenta que nova-lite no es una elección aceptable ya que no soporta tool calling/MCP. ¡Gracias Yuelin L!
+Update the `REGION` and `MODEL` values so they match the model you have access to. See the examples above for possible values.  
+Keep in mind that nova-lite is not an acceptable choice because it does not support tool calling/MCP. Thanks Yuelin L.!
 
-## Paso 1: Despliega la infraestructura
+## Step 1: Deploy infrastructure
 
-Primero, asegúrate de tener tu clave API de OpenAI y los valores de la Parte 3 en tu archivo `.env`.
+First, make sure you have your OpenAI API key and Part 3 values in your `.env` file.
 
-Abre el archivo `.env` en la raíz del proyecto usando el explorador de archivos de Cursor y verifica que tienes estos valores:
-- `OPENAI_API_KEY` - Tu clave API de OpenAI (requerida para trazado del agente)
-- `ALEX_API_ENDPOINT` - De la Parte 3
-- `ALEX_API_KEY` - De la Parte 3
+Open the `.env` file in the project root using Cursor's file explorer and verify you have these values:
+- `OPENAI_API_KEY` - Your OpenAI API key (required for agent tracing)
+- `ALEX_API_ENDPOINT` - From Part 3
+- `ALEX_API_KEY` - From Part 3
 
-Si aún no has agregado tu clave API de OpenAI, añade esta línea al archivo `.env`:
+If you have not added your OpenAI API key yet, add this line to `.env`:
 ```
-OPENAI_API_KEY=sk-...  # Tu clave API real de OpenAI (requerida para el trazado del agente)
+OPENAI_API_KEY=sk-...  # Your real OpenAI API key (required for agent tracing)
 ```
 
-Ahora configura la infraestructura inicial:
+Now configure the initial infrastructure:
 
 ```bash
-# Navega al directorio terraform/4_researcher
-# Copia el archivo de variables de ejemplo
+# Go to the terraform/4_researcher directory
+# Copy the example variables file
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-Edita `terraform.tfvars` y actualízalo con tus valores del archivo `.env`:
+Edit `terraform.tfvars` and update it with values from `.env`:
 ```hcl
-aws_region = "us-east-1"  # Tu región de AWS
-openai_api_key = "sk-..."  # Tu clave API de OpenAI
-alex_api_endpoint = "https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod/ingest"  # De la Parte 3
-alex_api_key = "your-api-key-here"  # De la Parte 3
-scheduler_enabled = false  # Mantenlo en false por ahora
+aws_region = "us-east-1"  # Your AWS region
+openai_api_key = "sk-..."  # Your OpenAI API key
+alex_api_endpoint = "https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod/ingest"  # From Part 3
+alex_api_key = "your-api-key-here"  # From Part 3
+scheduler_enabled = false  # Keep this false for now
 ```
 
-Despliega primero el repositorio ECR y los roles IAM:
+Deploy the ECR repository and IAM roles first:
 
 ```bash
-# Inicializa Terraform (crea el archivo de estado local)
+# Initialize Terraform (creates local state file)
 terraform init
 
-# Despliega solo el repositorio ECR y los roles IAM (no App Runner todavía)
+# Deploy only the ECR repository and IAM roles (not App Runner yet)
 terraform apply -target=aws_ecr_repository.researcher -target=aws_iam_role.app_runner_role
 ```
 
-Escribe `yes` cuando se te solicite. Esto crea:
-- Repositorio ECR para tus imágenes Docker
-- Roles IAM con permisos adecuados para App Runner
+Type `yes` when prompted. This creates:
+- ECR repository for your Docker images
+- IAM roles with correct permissions for App Runner
 
-Guarda la URL del repositorio ECR que aparece en la salida: la necesitarás en el Paso 2.
+Save the ECR repository URL shown in the output: you will need it in Step 2.
 
-## Paso 2: Construye y despliega el Researcher
+## Step 2: Build and deploy Researcher
 
-Ahora vamos a construir el contenedor Docker y a desplegarlo en App Runner.
+Now build the Docker container and deploy it to App Runner.
 
 ```bash
-# Navega al directorio backend/researcher
+# Go to the backend/researcher directory
 uv run deploy.py
 ```
 
-Este script:
-1. Construirá una imagen Docker (con `--platform linux/amd64` para compatibilidad)
-2. La subirá a tu repositorio ECR
-3. Lanzará un despliegue en App Runner
-4. Esperará a que finalice el despliegue (3-5 minutos)
-5. Mostrará la URL de tu servicio cuando esté listo
+This script:
+1. Builds a Docker image (with `--platform linux/amd64` for compatibility)
+2. Pushes it to your ECR repository
+3. Starts an App Runner deployment
+4. Waits for deployment to finish (3-5 minutes)
+5. Shows your service URL when ready
 
-**Nota importante para usuarios de Mac con Apple Silicon:**
-El script de despliegue construye automáticamente para la arquitectura `linux/amd64` para asegurar compatibilidad con AWS App Runner. Por eso verás "Building Docker image for linux/amd64..." en la salida.
+**Important note for Mac users with Apple Silicon:**
+The deploy script automatically builds for `linux/amd64` architecture to ensure AWS App Runner compatibility. That is why you will see "Building Docker image for linux/amd64..." in output.
 
-Cuando finalice la subida de la imagen Docker, verás:
+When Docker image upload finishes, you will see:
 ```
-✅ ¡Imagen Docker subida exitosamente!
+✅ Docker image uploaded successfully!
 ```
 
-## Paso 3: Crea el servicio App Runner
+## Step 3: Create the App Runner service
 
-Ahora que tu imagen Docker está en ECR, crea el servicio App Runner:
+Now that your Docker image is in ECR, create the App Runner service:
 
 ```bash
-# Vuelve al directorio terraform/4_researcher
-# Despliega toda la infraestructura, incluyendo App Runner
+# Go back to terraform/4_researcher directory
+# Deploy all infrastructure, including App Runner
 terraform apply
 ```
 
-Escribe `yes` cuando se te solicite. Esto:
-- Creará el servicio App Runner usando tu imagen Docker
-- Configurará variables de entorno para el servicio
-- Configurará el EventBridge scheduler opcional (si está habilitado)
+Type `yes` when prompted. This will:
+- Create the App Runner service using your Docker image
+- Configure service environment variables
+- Configure optional EventBridge scheduler (if enabled)
 
-La creación del servicio App Runner tarda 3-5 minutos. Cuando finalice, verás la URL del servicio en la salida.
+App Runner service creation takes 3-5 minutes. When done, you will see the service URL in the output.
 
-## Paso 4: Prueba el sistema completo
+## Step 4: Test the full system
 
-Probemos la pipeline completa: Investigación → Ingesta → Búsqueda.
+Let's test the full pipeline: Research -> Ingestion -> Search.
 
-### 4.1: Primero, limpia la base de datos
+### 4.1: First, clean the database
 
-Borra cualquier dato de prueba existente:
+Delete any existing test data:
 
 ```bash
-# Navega al directorio backend/ingest
+# Go to backend/ingest directory
 uv run cleanup_s3vectors.py
 ```
 
-Deberías ver: "✅ Todos los documentos eliminados exitosamente"
+You should see: "✅ All documents deleted successfully"
 
-### 4.2: Genera investigación
+### 4.2: Generate research
 
-Ahora genera investigación de inversión:
+Now generate investment research:
 
 ```bash
-# Navega al directorio backend/researcher
+# Go to backend/researcher directory
 uv run test_research.py
 ```
 
-Este script:
-1. Encuentra automáticamente la URL de tu servicio App Runner
-2. Verifica que el servicio esté saludable
-3. Genera investigación sobre un tema de actualidad (por defecto)
-4. Muestra los resultados
-5. La almacena automáticamente en tu base de conocimientos
+This script:
+1. Automatically finds your App Runner service URL
+2. Verifies service health
+3. Generates research on a current topic (default)
+4. Displays results
+5. Automatically stores it in your knowledge base
 
-También puedes investigar temas específicos:
+You can also research specific topics:
 ```bash
-uv run test_research.py "Ventajas competitivas de Tesla"
-uv run test_research.py "Crecimiento de ingresos de la nube de Microsoft"
+uv run test_research.py "Tesla competitive advantages"
+uv run test_research.py "Microsoft cloud revenue growth"
 ```
 
-La investigación tarda 20-30 segundos ya que el agente navega por sitios financieros y genera conclusiones de inversión.
+Research takes 20-30 seconds because the agent browses financial websites and generates investment conclusions.
 
-### 4.3: Verifica almacenamiento de datos
+### 4.3: Verify data storage
 
-Comprueba que la investigación fue almacenada:
+Check that research was stored:
 
 ```bash
-# Navega al directorio backend/ingest
+# Go to backend/ingest directory
 uv run test_search_s3vectors.py
 ```
 
-Deberías ver tu investigación en la base de datos con:
-- El contenido de investigación
-- Embeddings generados por SageMaker
-- Metadata incluyendo timestamp y tema
+You should see your research in the database with:
+- Research content
+- Embeddings generated by SageMaker
+- Metadata including timestamp and topic
 
-### 4.4: Prueba búsqueda semántica
+### 4.4: Test semantic search
 
-Ahora comprueba que la búsqueda semántica funciona:
+Now verify semantic search works:
 
 ```bash
-uv run test_search_s3vectors.py "mercado de vehículos eléctricos"
+uv run test_search_s3vectors.py "electric vehicle market"
 ```
 
-Aunque busques algo distinto a lo almacenado, la búsqueda semántica encontrará contenido relacionado.
+Even if you search for something different from the stored content, semantic search will find related content.
 
-## Paso 5: Prueba el Researcher
+## Step 5: Test Researcher
 
-Ahora que el servicio está desplegado y probado, exploraremos sus capacidades.
+Now that the service is deployed and tested, we will explore its capabilities.
 
-### Prueba de Health Check
+### Health check test
 
-Verifica que el servicio esté saludable:
+Verify service health:
 
 **Mac/Linux:**
 ```bash
@@ -276,7 +276,7 @@ curl https://YOUR_SERVICE_URL/health
 Invoke-WebRequest -Uri "https://YOUR_SERVICE_URL/health" | ConvertFrom-Json
 ```
 
-Deberías ver:
+You should see:
 ```json
 {
   "service": "Alex Researcher",
@@ -286,196 +286,196 @@ Deberías ver:
 }
 ```
 
-### Prueba con diferentes temas
+### Test with different topics
 
-1. **Genera múltiples análisis:**
+1. **Generate multiple analyses:**
    ```bash
-   uv run test_research.py "Cuota de mercado de chips de IA de NVIDIA"
-   uv run test_research.py "Crecimiento de ingresos por servicios de Apple"
-   uv run test_research.py "Oro vs Bitcoin como cobertura ante la inflación"
+   uv run test_research.py "NVIDIA AI chip market share"
+   uv run test_research.py "Apple services revenue growth"
+   uv run test_research.py "Gold vs Bitcoin as an inflation hedge"
    ```
 
-2. **Busca entre temas:**
+2. **Search across topics:**
    ```bash
-   # Navega al directorio backend/ingest
-   uv run test_search_s3vectors.py "inteligencia artificial"
-   uv run test_search_s3vectors.py "protección contra la inflación"
+    # Go to backend/ingest directory
+   uv run test_search_s3vectors.py "artificial intelligence"
+   uv run test_search_s3vectors.py "inflation protection"
    ```
 
-3. **Construye tu base de conocimientos:**
-   Prueba diferentes temas de inversión y construye una base de conocimientos completa para gestión de portafolios.
+3. **Build your knowledge base:**
+   Try different investment topics and build a complete knowledge base for portfolio management.
 
-## Paso 6: Habilita investigación automatizada (opcional)
+## Step 6: Enable automated research (optional)
 
-Ahora habilitaremos investigación automatizada cada 2 horas para recolectar los últimos insights financieros y ampliar tu base de conocimientos.
+Now we will enable automated research every 2 hours to collect the latest financial insights and expand your knowledge base.
 
-### Habilita el Scheduler
+### Enable the scheduler
 
-El scheduler está deshabilitado por defecto. Para habilitarlo:
+The scheduler is disabled by default. To enable it:
 
 ```bash
-# Navega al directorio terraform/4_researcher si no estás allí ya
-# Edita tu archivo terraform.tfvars
+# Go to terraform/4_researcher if you are not there yet
+# Edit your terraform.tfvars file
 ```
 
-Cambia el valor de `scheduler_enabled` en `terraform.tfvars`:
+Change the `scheduler_enabled` value in `terraform.tfvars`:
 ```hcl
-scheduler_enabled = true  # Cambiado de false
+scheduler_enabled = true  # Changed from false
 ```
 
-Luego aplica el cambio:
+Then apply the change:
 ```bash
 terraform apply
 ```
 
 **Windows PowerShell:**
 ```powershell
-# Navega al directorio terraform/4_researcher
-# Edita terraform.tfvars y pon scheduler_enabled = true
-# Aplica el cambio
+# Go to terraform/4_researcher directory
+# Edit terraform.tfvars and set scheduler_enabled = true
+# Apply change
 terraform apply
 ```
 
-Escribe `yes` cuando se te solicite. Verás:
-- Se crearán nuevos recursos (función Lambda y EventBridge schedule)
-- Salida mostrando `scheduler_status = "ENABLED - Running every 2 hours"`
+Type `yes` when prompted. You will see:
+- New resources will be created (Lambda function and EventBridge schedule)
+- Output showing `scheduler_status = "ENABLED - Running every 2 hours"`
 
-**Nota:** El scheduler usa una pequeña función Lambda para llamar a tu endpoint App Runner. Esto es necesario porque los endpoints App Runner pueden tardar 30-60 segundos en completar la investigación, pero EventBridge API Destinations tiene un límite de timeout de 5 segundos.
+**Note:** The scheduler uses a small Lambda function to call your App Runner endpoint. This is required because App Runner endpoints can take 30-60 seconds to complete research, but EventBridge API Destinations has a 5-second timeout limit.
 
-### Verifica el estado del scheduler
+### Verify scheduler status
 
-Consulta el estado actual del scheduler:
+Check current scheduler status:
 
 ```bash
 terraform output scheduler_status
 ```
 
-### Monitorea la investigación automatizada
+### Monitor automated research
 
-El scheduler llamará a tu endpoint `/research/auto` cada 2 horas. Puedes:
+The scheduler will call your `/research/auto` endpoint every 2 hours. You can:
 
-1. Ver los logs de Lambda para ver cuándo se ejecuta:
+1. View Lambda logs to see when it runs:
 ```bash
 aws logs tail /aws/lambda/alex-research-scheduler --follow --region us-east-1
 ```
 
-2. Ver los logs de App Runner para ver la investigación realizada:
+2. View App Runner logs to see completed research:
 ```bash
 aws logs tail /aws/apprunner/alex-researcher/*/application --follow --region us-east-1
 ```
 
-3. Buscar en tu base S3 Vectors para ver la investigación acumulada:
+3. Search your S3 Vectors store to see accumulated research:
 ```bash
-# Navega al directorio backend/ingest
+# Go to backend/ingest directory
 uv run test_search_s3vectors.py
 ```
 
-### Desactiva el scheduler (cuando lo necesites)
+### Disable scheduler (when needed)
 
-Cuando quieras detener la investigación automatizada (para ahorrar costos de API):
+When you want to stop automated research (to save API costs):
 
 **Mac/Linux:**
 ```bash
-# Navega al directorio terraform/4_researcher
+# Go to terraform/4_researcher directory
 terraform apply -var="scheduler_enabled=false"
 ```
 
 **Windows PowerShell:**
 ```powershell
-# Navega al directorio terraform/4_researcher
+# Go to terraform/4_researcher directory
 terraform apply -var="scheduler_enabled=false"
 ```
 
-Esto eliminará el scheduler pero mantendrá activos los demás servicios.
+This removes the scheduler while keeping other services active.
 
-## Resolución de problemas
+## Troubleshooting
 
 ### "Service creation failed"
-- Revisa que tu repositorio ECR exista: `aws ecr describe-repositories`
-- Asegúrate de que Docker esté en funcionamiento
-- Verifica que tus credenciales AWS estén configuradas
+- Check that your ECR repository exists: `aws ecr describe-repositories`
+- Make sure Docker is running
+- Verify your AWS credentials are configured
 
 ### "Deployment stuck in OPERATION_IN_PROGRESS"
-- Es normal en el primer despliegue (puede tardar 5-10 minutos)
-- Revisa los logs de CloudWatch en AWS Console > App Runner > Tu servicio > Logs
+- This is normal on first deployment (can take 5-10 minutes)
+- Check CloudWatch logs in AWS Console > App Runner > Your service > Logs
 
-### "Exit code 255" o el servicio no inicia
-- Generalmente la imagen Docker no está construida para la arquitectura correcta
-- Asegúrate que el script de despliegue use `--platform linux/amd64`
-- Reconstruye y vuelve a desplegar
+### "Exit code 255" or service does not start
+- Usually the Docker image was not built for the correct architecture
+- Make sure the deploy script uses `--platform linux/amd64`
+- Rebuild and redeploy
 
-### "Connection refused" al llamar al servicio
-- Verifica que el estado del servicio sea "RUNNING"
-- Asegúrate de usar HTTPS (no HTTP)
-- Verifica que la URL del servicio sea correcta
+### "Connection refused" when calling the service
+- Verify service status is "RUNNING"
+- Make sure you use HTTPS (not HTTP)
+- Verify the service URL is correct
 
-### Errores "504 Gateway Timeout"
-- El agente puede estar tardando mucho (>30 segundos)
-- Es normal si el agente navega varios sitios web
-- La investigación debería completarse y almacenarse igualmente
+### "504 Gateway Timeout" errors
+- The agent may be taking a long time (>30 seconds)
+- This is normal if the agent browses multiple websites
+- Research should still complete and be stored
 
-### "Invalid model identifier" o errores de Bedrock
-- Asegúrate de haber solicitado acceso a los modelos OSS en us-west-2 (ver Paso 0)
-- Comprueba que tu rol IAM tenga permisos para Bedrock (debería ser añadido por Terraform)
-- Los modelos solo están disponibles en us-west-2 pero puedes acceder desde cualquier región
-- Verifica acceso a modelos: Ve a la consola de Bedrock → Model access → Check status
+### "Invalid model identifier" or Bedrock errors
+- Make sure you requested access to OSS models in us-west-2 (see Step 0)
+- Verify your IAM role has Bedrock permissions (should be added by Terraform)
+- Models are available only in us-west-2 but can be accessed from any region
+- Verify model access: Bedrock console -> Model access -> Check status
 
-## Limpieza (opcional)
+## Cleanup (optional)
 
-Si deseas detener TODOS los servicios para evitar costos:
+If you want to stop ALL services to avoid costs:
 
 ```bash
-# Navega al directorio terraform/4_researcher
+# Go to terraform/4_researcher directory
 terraform destroy
 ```
 
-Esto eliminará todos los recursos AWS creados en esta guía.
+This removes all AWS resources created in this guide.
 
-## Resumen
+## Summary
 
-¡Has desplegado exitosamente un sistema de IA agente que puede investigar, analizar y gestionar conocimiento de inversión! El sistema utiliza arquitectura moderna cloud-native, escalado automático, búsqueda vectorial e IA agentes trabajando juntos para brindarte análisis financieros inteligentes.
+You have successfully deployed an agentic AI system that can research, analyze, and manage investment knowledge. The system uses modern cloud-native architecture, autoscaling, vector search, and collaborating AI agents to provide intelligent financial analysis.
 
-## Guarda tu configuración
+## Save your configuration
 
-Antes de pasar a la siguiente guía, asegúrate de que tu archivo `.env` esté actualizado:
+Before moving to the next guide, make sure your `.env` file is updated:
 
 ```bash
-# Navega a la raíz del proyecto y edita .env
-# Usa tu editor de texto favorito (nano, vim, o ábrelo en Cursor)
+# Go to project root and edit .env
+# Use your preferred text editor (nano, vim, or open it in Cursor)
 ```
 
-Verifica que tienes todos estos valores de las Partes 1-4:
+Verify you have all these values from Parts 1-4:
 ```
-# Parte 1
+# Part 1
 AWS_ACCOUNT_ID=123456789012
 DEFAULT_AWS_REGION=us-east-1
 
-# Parte 2
+# Part 2
 SAGEMAKER_ENDPOINT=alex-embedding-endpoint
 
-# Parte 3
+# Part 3
 VECTOR_BUCKET=alex-vectors-123456789012
 ALEX_API_ENDPOINT=https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod/ingest
 ALEX_API_KEY=your-api-key-here
 
-# Parte 4
+# Part 4
 OPENAI_API_KEY=sk-...
 ```
 
-## ¿Qué sigue?
+## What's next?
 
-¡Felicidades! Ahora tienes una pipeline de investigación con IA completa:
-1. **Agente Researcher** (App Runner) – Genera análisis de inversión usando modelos Bedrock OSS en us-west-2
-2. **Pipeline de Ingesta** (Lambda) – Procesa y almacena documentos
-3. **Base de datos vectorial** (S3 Vectors) – Búsqueda semántica rentable
-4. **Modelo de embeddings** (SageMaker) – Crea representaciones semánticas
-5. **Scheduler automatizado** (EventBridge + Lambda) – Opcional, genera investigación cada 2 horas
+Congratulations! You now have a complete AI research pipeline:
+1. **Researcher Agent** (App Runner) - Generates investment analysis using Bedrock OSS models in us-west-2
+2. **Ingestion Pipeline** (Lambda) - Processes and stores documents
+3. **Vector database** (S3 Vectors) - Cost-effective semantic search
+4. **Embeddings model** (SageMaker) - Creates semantic representations
+5. **Automated scheduler** (EventBridge + Lambda) - Optional, generates research every 2 hours
 
-Tu sistema ahora puede:
-- Generar investigación de inversión profesional bajo demanda
-- Almacenar e indexar automáticamente toda la investigación
-- Realizar búsqueda semántica en toda tu base de conocimientos
-- Escalar automáticamente según la demanda
-- Construir conocimiento continuamente con investigación programada
+Your system can now:
+- Generate professional investment research on demand
+- Automatically store and index all research
+- Perform semantic search across your entire knowledge base
+- Scale automatically based on demand
+- Continuously build knowledge with scheduled research
 
-Continúa con: [5_database.md](5_database.md) donde configuraremos Aurora Serverless v2 PostgreSQL para gestionar portafolios de usuario y datos financieros.
+Continue with: [5_database.md](5_database.md), where we will configure Aurora Serverless v2 PostgreSQL to manage user portfolios and financial data.

@@ -31,7 +31,7 @@ _If you are viewing this in Cursor, please right-click the file name in the Expl
 - On Day 3 of Week 4, we will do 7_frontend
 - On Day 4 of Week 4, we will do 8_enterprise
 
-#### Ten en cuenta
+#### Keep in mind
 
 - Please submit your community contributions, including links to your repositories, in the community_contributions folder of the production repository
 - Do git pull regularly to get the latest code
